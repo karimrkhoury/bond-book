@@ -54,7 +54,7 @@
   }
 
   * { box-sizing: border-box; }
-  html { height: 100%; }
+  html { height: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     margin: 0;
     min-height: 100%;
@@ -102,7 +102,7 @@
     font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--muted); margin-bottom: 6px;
   }
-  .sum-value { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .sum-value { font-size: clamp(24px, 8.5vw, 34px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; }
   .sum-sub { font-size: 14px; color: var(--muted); margin-top: 5px; }
   .sum-pnl { font-size: 14px; font-weight: 600; margin-top: 3px; }
 
@@ -445,7 +445,7 @@
         return `
         <div>
           <div class="sum-label">${esc(ccy)} portfolio</div>
-          <div class="sum-value num">${money(t.market, ccy)}</div>
+          <div class="sum-value num">${money0(t.market, ccy)}</div>
           <div class="sum-sub num">${money0(t.nominal, ccy)} nominal</div>
           ${pnlLine}
         </div>`;
