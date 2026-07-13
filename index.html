@@ -96,48 +96,38 @@
     padding: 16px;
   }
 
-  /* Totals */
-  #totals { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-  .total-row { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: baseline; }
-  .total-ccy {
-    grid-row: span 2; align-self: center;
-    font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
-    color: var(--muted);
-    background: var(--chip); border-radius: 8px; padding: 6px 9px;
+  /* Portfolio summary */
+  #totals { display: flex; flex-direction: column; gap: 24px; margin: 12px 4px 28px; }
+  .sum-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
   }
-  .total-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .total-label { font-size: 13px; color: var(--muted); }
-  .total-market { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
-  .total-nominal { font-size: 15px; font-weight: 500; color: var(--muted); }
+  .sum-value { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .sum-sub { font-size: 14px; color: var(--muted); margin-top: 5px; }
+  .sum-pnl { font-size: 14px; font-weight: 600; margin-top: 3px; }
 
   /* Holdings list */
   .section-label {
     font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--muted); margin: 0 4px 8px;
   }
-  #list { display: flex; flex-direction: column; gap: 10px; }
+  #list { display: flex; flex-direction: column; }
   .holding {
     width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
-    display: flex; flex-direction: column; gap: 6px;
+    background: none; border: none; border-bottom: 1px solid var(--line);
+    padding: 14px 4px;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
   }
-  .holding:active { transform: scale(0.99); }
-  .h-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .h-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .h-market { font-weight: 700; white-space: nowrap; }
-  .h-sub { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
-  .h-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .h-price {
-    flex-shrink: 0;
-    font-size: 12px; font-weight: 600;
-    background: var(--chip); border-radius: 6px; padding: 2px 7px;
-  }
-  .isin { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
-  .h-pnl { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
-  .h-pnl .lbl { color: var(--muted); }
-  .h-pnl .val { font-weight: 600; }
+  .holding:last-child { border-bottom: none; }
+  .holding:active { background: var(--chip); }
+  .h-left { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .h-right { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+  .h-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-sub { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-value { font-weight: 600; }
+  .h-meta { font-size: 13px; color: var(--muted); }
   .pnl-pos { color: var(--gain); }
   .pnl-neg { color: var(--loss); }
-  .total-pnl { font-size: 15px; font-weight: 600; }
   .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
 
   /* Floating add button */
@@ -298,7 +288,7 @@
         <input id="f-qty" type="number" step="any" min="0" inputmode="decimal" required placeholder="10">
       </label>
       <label>Purchase price %
-        <input id="f-cost" type="number" step="any" min="0" inputmode="decimal" required placeholder="100">
+        <input id="f-cost" type="number" step="any" min="0" inputmode="decimal" placeholder="optional">
       </label>
     </div>
     <label>Current price %
@@ -351,7 +341,9 @@
     }
     const nominalOf = (h) => Number(h.face_value) * Number(h.quantity);
     const marketOf = (h) => nominalOf(h) * Number(h.clean_price) / 100;
-    const pnlOf = (h) => nominalOf(h) * (Number(h.clean_price) - Number(h.cost_price)) / 100;
+    const pnlOf = (h) =>
+      h.cost_price == null ? null : nominalOf(h) * (Number(h.clean_price) - Number(h.cost_price)) / 100;
+    const costBasisOf = (h) => nominalOf(h) * Number(h.cost_price) / 100;
 
     function signedMoney(v, ccy) {
       try {
@@ -364,13 +356,14 @@
     const maturityLabel = (d) =>
       d ? new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "";
 
-    function agoLabel(iso) {
-      if (!iso) return "";
-      const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-      if (days <= 0) return "priced today";
-      if (days === 1) return "priced yesterday";
-      return `priced ${days}d ago`;
+    function money0(v, ccy) {
+      try {
+        return new Intl.NumberFormat(undefined, { style: "currency", currency: ccy, maximumFractionDigits: 0 }).format(v);
+      } catch {
+        return ccy + " " + Math.round(v).toLocaleString();
+      }
     }
+    const staleDays = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 0;
 
     // ---- auth ----
     sb.auth.onAuthStateChange((_event, session) => {
@@ -438,43 +431,47 @@
 
       const byCcy = new Map();
       for (const h of holdings) {
-        const t = byCcy.get(h.currency) || { nominal: 0, market: 0, pnl: 0 };
+        const t = byCcy.get(h.currency) || { nominal: 0, market: 0, pnl: 0, basis: 0, hasCost: false };
         t.nominal += nominalOf(h);
         t.market += marketOf(h);
-        t.pnl += pnlOf(h);
+        const pnl = pnlOf(h);
+        if (pnl != null) { t.pnl += pnl; t.basis += costBasisOf(h); t.hasCost = true; }
         byCcy.set(h.currency, t);
       }
-      totalsEl.innerHTML = [...byCcy.entries()].map(([ccy, t]) => `
-        <div class="card total-row">
-          <span class="total-ccy">${esc(ccy)}</span>
-          <div class="total-line"><span class="total-label">Market value</span><span class="total-market num">${money(t.market, ccy)}</span></div>
-          <div class="total-line"><span class="total-label">Nominal value</span><span class="total-nominal num">${money(t.nominal, ccy)}</span></div>
-          <div class="total-line"><span class="total-label">Unrealized P&amp;L</span><span class="total-pnl num ${t.pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(t.pnl, ccy)}</span></div>
-        </div>`).join("");
+      totalsEl.innerHTML = [...byCcy.entries()].map(([ccy, t]) => {
+        const pnlLine = t.hasCost
+          ? `<div class="sum-pnl num ${t.pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(t.pnl, ccy)}${t.basis > 0 ? ` (${signedPct(t.pnl / t.basis)})` : ""} unrealized</div>`
+          : "";
+        return `
+        <div>
+          <div class="sum-label">${esc(ccy)} portfolio</div>
+          <div class="sum-value num">${money(t.market, ccy)}</div>
+          <div class="sum-sub num">${money0(t.nominal, ccy)} nominal</div>
+          ${pnlLine}
+        </div>`;
+      }).join("");
 
       $("list-label").hidden = false;
       listEl.innerHTML = holdings.map((h) => {
-        const qty = Number(h.quantity).toLocaleString();
-        const face = Number(h.face_value).toLocaleString();
-        const maturity = h.maturity_date ? `${maturityLabel(h.maturity_date)} · ` : "";
-        const isin = h.isin ? ` · <span class="isin">${esc(h.isin)}</span>` : "";
-        const priced = h.priced_at ? ` · ${agoLabel(h.priced_at)}` : "";
+        const bits = [money0(nominalOf(h), h.currency) + " nominal"];
+        if (h.maturity_date) bits.push(maturityLabel(h.maturity_date));
+        const stale = staleDays(h.priced_at);
+        if (stale > 7) bits.push(`${stale}d-old price`);
         const pnl = pnlOf(h);
-        const cost = Number(h.cost_price);
-        const pct = cost > 0 ? ` (${signedPct(Number(h.clean_price) / cost - 1)})` : "";
+        const cost = h.cost_price == null ? null : Number(h.cost_price);
+        const priceLabel = Number(h.clean_price).toLocaleString(undefined, { maximumFractionDigits: 4 });
+        const meta = pnl == null
+          ? `<span class="h-meta num">@ ${priceLabel}</span>`
+          : `<span class="h-meta num ${pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(pnl, h.currency)}${cost > 0 ? ` (${signedPct(Number(h.clean_price) / cost - 1)})` : ""}</span>`;
         return `
-        <button class="card holding" data-id="${esc(h.id)}">
-          <span class="h-top">
+        <button class="holding" data-id="${esc(h.id)}">
+          <span class="h-left">
             <span class="h-name">${esc(h.name)}</span>
-            <span class="h-market num">${money(marketOf(h), h.currency)}</span>
+            <span class="h-sub num">${bits.join(" · ")}</span>
           </span>
-          <span class="h-sub">
-            <span class="h-detail num">${maturity}${qty} × ${face} = ${money(nominalOf(h), h.currency)}${isin}${priced}</span>
-            <span class="h-price num">${Number(h.clean_price).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-          </span>
-          <span class="h-pnl">
-            <span class="lbl">Unrealized P&amp;L</span>
-            <span class="val num ${pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(pnl, h.currency)}${pct}</span>
+          <span class="h-right">
+            <span class="h-value num">${money(marketOf(h), h.currency)}</span>
+            ${meta}
           </span>
         </button>`;
       }).join("");
@@ -520,7 +517,7 @@
         maturity_date: $("f-maturity").value || null,
         face_value: Number($("f-face").value),
         quantity: Number($("f-qty").value),
-        cost_price: Number($("f-cost").value),
+        cost_price: $("f-cost").value === "" ? null : Number($("f-cost").value),
         clean_price: Number($("f-price").value),
       };
       if (!original || Number(original.clean_price) !== row.clean_price) {
