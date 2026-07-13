@@ -120,7 +120,14 @@
   }
   .holding:last-child { border-bottom: none; }
   .holding:active { background: var(--chip); }
-  .h-left { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .h-avatar {
+    flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--chip); display: flex; align-items: center; justify-content: center;
+    font-size: 17px; overflow: hidden;
+  }
+  .h-avatar img { width: 20px; height: 20px; border-radius: 4px; }
+  .h-avatar.mono { font-size: 15px; font-weight: 700; color: var(--muted); }
+  .h-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .h-right { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
   .h-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .h-mty { font-weight: 400; color: var(--muted); }
@@ -283,12 +290,32 @@
     </div>
     <form id="editor-form">
     <p class="form-section">Bond</p>
-    <label>Issuer name
-      <input id="f-name" type="text" required placeholder="e.g. Oman" autocomplete="off" autocapitalize="words">
+    <label>Issuer
+      <select id="f-issuer"></select>
+    </label>
+    <label id="custom-name-label" hidden>Issuer name
+      <input id="f-name" type="text" placeholder="e.g. Acme Corp" autocomplete="off" autocapitalize="words">
     </label>
     <div class="field-row">
       <label>Maturity
-        <input id="f-maturity" type="month" placeholder="YYYY-MM">
+        <select id="f-mty-month">
+          <option value="">Month —</option>
+          <option value="01">January</option><option value="02">February</option>
+          <option value="03">March</option><option value="04">April</option>
+          <option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option>
+          <option value="09">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+      </label>
+      <label>Year
+        <select id="f-mty-year"></select>
+      </label>
+    </div>
+    <p class="form-section">Position</p>
+    <div class="field-row">
+      <label>Nominal value
+        <input id="f-nominal" type="text" inputmode="decimal" required placeholder="e.g. 100,000" autocomplete="off">
       </label>
       <label>Currency
         <select id="f-currency">
@@ -296,15 +323,6 @@
           <option>AED</option><option>SAR</option><option>KWD</option><option>QAR</option>
           <option>JPY</option><option>LBP</option>
         </select>
-      </label>
-    </div>
-    <p class="form-section">Position</p>
-    <div class="field-row">
-      <label>Face value
-        <input id="f-face" type="number" step="any" min="0" inputmode="decimal" required placeholder="e.g. 1000">
-      </label>
-      <label>Quantity
-        <input id="f-qty" type="number" step="any" min="0" inputmode="decimal" required placeholder="e.g. 100">
       </label>
     </div>
     <p class="form-section">Prices · % of par</p>
@@ -390,6 +408,53 @@
       }
     }
     const staleDays = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 0;
+
+    // Issuer directory: sovereigns get emoji flags, corporates a favicon domain.
+    const ISSUERS = [
+      { name: "Abu Dhabi", flag: "🇦🇪" }, { name: "Bahrain", flag: "🇧🇭" },
+      { name: "Brazil", flag: "🇧🇷" }, { name: "Colombia", flag: "🇨🇴" },
+      { name: "Dubai", flag: "🇦🇪" }, { name: "Egypt", flag: "🇪🇬" },
+      { name: "Indonesia", flag: "🇮🇩" }, { name: "Jordan", flag: "🇯🇴" },
+      { name: "Kuwait", flag: "🇰🇼" }, { name: "Lebanon", flag: "🇱🇧" },
+      { name: "Mexico", flag: "🇲🇽" }, { name: "Morocco", flag: "🇲🇦" },
+      { name: "Nigeria", flag: "🇳🇬" }, { name: "Oman", flag: "🇴🇲" },
+      { name: "Pakistan", flag: "🇵🇰" }, { name: "Qatar", flag: "🇶🇦" },
+      { name: "Ras Al Khaimah", flag: "🇦🇪" }, { name: "Saudi Arabia", flag: "🇸🇦" },
+      { name: "Sharjah", flag: "🇦🇪" }, { name: "South Africa", flag: "🇿🇦" },
+      { name: "Turkey", flag: "🇹🇷" }, { name: "United Kingdom", flag: "🇬🇧" },
+      { name: "United States", flag: "🇺🇸" },
+      { name: "Aramco", domain: "aramco.com" },
+      { name: "Ecopetrol", domain: "ecopetrol.com.co" },
+      { name: "Pemex", domain: "pemex.com" },
+    ];
+    const issuerKey = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+    const issuerInfo = (name) => {
+      const k = issuerKey(name);
+      return ISSUERS.find((i) => k === issuerKey(i.name) || k.startsWith(issuerKey(i.name))) || null;
+    };
+    function avatar(name) {
+      const info = issuerInfo(name);
+      if (info?.flag) return `<span class="h-avatar">${info.flag}</span>`;
+      if (info?.domain) return `<span class="h-avatar"><img src="https://www.google.com/s2/favicons?domain=${info.domain}&sz=64" alt="" loading="lazy"></span>`;
+      return `<span class="h-avatar mono">${esc(String(name || "?").trim().charAt(0).toUpperCase())}</span>`;
+    }
+
+    $("f-issuer").innerHTML =
+      ISSUERS.map((i) => `<option value="${esc(i.name)}">${i.flag ? i.flag + " " : ""}${esc(i.name)}</option>`).join("") +
+      `<option value="__other">Other…</option>`;
+    $("f-mty-year").innerHTML =
+      `<option value="">Year —</option>` +
+      Array.from({ length: 46 }, (_, k) => 2025 + k).map((y) => `<option>${y}</option>`).join("");
+    $("f-issuer").addEventListener("change", () => {
+      $("custom-name-label").hidden = $("f-issuer").value !== "__other";
+    });
+    $("f-nominal").addEventListener("input", () => {
+      const el = $("f-nominal");
+      const raw = el.value.replace(/[^\d.]/g, "");
+      if (!raw) { el.value = ""; return; }
+      const [int, ...rest] = raw.split(".");
+      el.value = (int ? Number(int).toLocaleString("en-US") : "0") + (rest.length ? "." + rest.join("").slice(0, 2) : "");
+    });
 
     // ---- auth ----
     sb.auth.onAuthStateChange((_event, session) => {
@@ -490,6 +555,7 @@
           : `<span class="h-meta num ${pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(pnl, h.currency)}${cost > 0 ? ` (${signedPct(Number(h.clean_price) / cost - 1)})` : ""}</span>`;
         return `
         <button class="holding" data-id="${esc(h.id)}">
+          ${avatar(h.name)}
           <span class="h-left">
             <span class="h-name">${esc(h.name)}${h.maturity_date ? ` <span class="h-mty">${maturityLabel(h.maturity_date)}</span>` : ""}</span>
             <span class="h-sub num">${bits.join(" · ")}</span>
@@ -514,15 +580,20 @@
       $("editor-title").textContent = h ? "Edit bond" : "Add bond";
       $("editor-delete").hidden = !h;
       $("editor-msg").textContent = "";
-      $("f-name").value = h?.name || "";
-      $("f-isin").value = h?.isin || "";
+      const known = h ? ISSUERS.some((i) => i.name === h.name) : false;
+      if (h) $("f-issuer").value = known ? h.name : "__other";
+      else $("f-issuer").selectedIndex = 0;
+      $("custom-name-label").hidden = $("f-issuer").value !== "__other";
+      $("f-name").value = h && !known ? h.name : "";
+      $("f-mty-month").value = h?.maturity_date ? h.maturity_date.slice(5, 7) : "";
+      $("f-mty-year").value = h?.maturity_date ? h.maturity_date.slice(0, 4) : "";
+      $("f-nominal").value = h ? nominalOf(h).toLocaleString("en-US") : "";
       $("f-currency").value = h?.currency || "USD";
-      $("f-maturity").value = (h?.maturity_date || "").slice(0, 7);
-      $("f-face").value = h?.face_value ?? "";
-      $("f-qty").value = h?.quantity ?? "";
       $("f-cost").value = h?.cost_price ?? "";
       $("f-price").value = h?.clean_price ?? "";
+      $("f-isin").value = h?.isin || "";
       editor.showModal();
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     }
 
     $("add-btn").addEventListener("click", () => openEditor(null));
@@ -535,13 +606,19 @@
     $("editor-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const original = editingId ? holdings.find((h) => h.id === editingId) : null;
+      const name = $("f-issuer").value === "__other" ? $("f-name").value.trim() : $("f-issuer").value;
+      const nominal = Number($("f-nominal").value.replace(/,/g, ""));
+      const year = $("f-mty-year").value;
+      const month = $("f-mty-month").value;
+      if (!name) { $("editor-msg").textContent = "Give the issuer a name."; return; }
+      if (!(nominal > 0)) { $("editor-msg").textContent = "Enter the nominal value."; return; }
       const row = {
-        name: $("f-name").value.trim(),
+        name,
         isin: $("f-isin").value.trim().toUpperCase() || null,
         currency: $("f-currency").value,
-        maturity_date: $("f-maturity").value ? $("f-maturity").value + "-01" : null,
-        face_value: Number($("f-face").value),
-        quantity: Number($("f-qty").value),
+        maturity_date: year ? `${year}-${month || "01"}-01` : null,
+        face_value: nominal,
+        quantity: 1,
         cost_price: $("f-cost").value === "" ? null : Number($("f-cost").value),
         clean_price: Number($("f-price").value),
       };

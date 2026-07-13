@@ -1,4 +1,4 @@
-<!-- @dsCard group="Components" name="Holding row" subtitle="Chromeless rows, hairline dividers, P&L or price on the right" -->
+<!-- @dsCard group="Components" name="Holding row" subtitle="Issuer avatar (flag / logo / monogram), name + maturity, P&L or price" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -23,7 +23,10 @@
   }
   .holding:last-child { border-bottom:none; }
   .holding:active { background:var(--chip); }
-  .h-left { min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .h-avatar { flex-shrink:0; width:32px; height:32px; border-radius:50%; background:var(--chip);
+              display:flex; align-items:center; justify-content:center; font-size:17px; overflow:hidden; }
+  .h-avatar.mono { font-size:15px; font-weight:700; color:var(--muted); }
+  .h-left { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
   .h-right { flex-shrink:0; display:flex; flex-direction:column; gap:3px; align-items:flex-end; }
   .h-name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .h-mty { font-weight:400; color:var(--muted); }
@@ -37,33 +40,36 @@
 <body>
   <div class="list">
     <button class="holding">
+      <span class="h-avatar">🇴🇲</span>
       <span class="h-left">
         <span class="h-name">Oman <span class="h-mty">Aug 2047</span></span>
         <span class="h-sub num">$500,000 nominal</span>
       </span>
       <span class="h-right">
         <span class="h-value num">$530,000.00</span>
-        <span class="h-meta num pnl-pos">+$15,000.00 (+2.91%)</span>
+        <span class="h-meta num pnl-pos">+$25,000.00 (+4.95%)</span>
       </span>
     </button>
     <button class="holding">
+      <span class="h-avatar">🇯🇴</span>
       <span class="h-left">
-        <span class="h-name">Sharjah</span>
-        <span class="h-sub num">$230,000 nominal</span>
+        <span class="h-name">Jordan <span class="h-mty">Oct 2047</span></span>
+        <span class="h-sub num">$200,000 nominal</span>
       </span>
       <span class="h-right">
-        <span class="h-value num">$155,480.00</span>
-        <span class="h-meta num">@ 67.6</span>
+        <span class="h-value num">$200,000.00</span>
+        <span class="h-meta num pnl-pos">+$3,000.00 (+1.52%)</span>
       </span>
     </button>
     <button class="holding">
+      <span class="h-avatar mono">A</span>
       <span class="h-left">
-        <span class="h-name">Ecopetrol <span class="h-mty">May 2045</span></span>
-        <span class="h-sub num">$105,000 nominal · 12d-old price</span>
+        <span class="h-name">Acme Corp</span>
+        <span class="h-sub num">$50,000 nominal · 12d-old price</span>
       </span>
       <span class="h-right">
-        <span class="h-value num">$86,100.00</span>
-        <span class="h-meta num pnl-neg">−$3,150.00 (−3.53%)</span>
+        <span class="h-value num">$49,500.00</span>
+        <span class="h-meta num">@ 99</span>
       </span>
     </button>
   </div>
