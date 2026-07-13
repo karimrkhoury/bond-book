@@ -22,7 +22,10 @@
                   color:var(--muted); margin:8px 0 -2px; }
   label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:600; color:var(--muted); }
   input, select { font:inherit; font-size:16px; color:var(--ink); background:var(--bg); border:1px solid var(--line);
-                  border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; min-height:48px; }
+                  border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; height:48px; }
+  select { -webkit-appearance:none; appearance:none;
+           background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' fill='none' stroke='%23808f8b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+           background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; }
   input:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
   .field-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
   .editor-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
