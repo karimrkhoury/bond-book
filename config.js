@@ -2,6 +2,6 @@
 // then commit and push. The anon key is safe to publish: all data access is
 // enforced server-side by row-level security.
 window.BOND_BOOK_CONFIG = {
-  supabaseUrl: "",    // e.g. "https://abcd1234.supabase.co"
-  supabaseAnonKey: "" // the long "anon / public" key
+  supabaseUrl: "https://tqevniltvdfnvkjockok.supabase.co",
+  supabaseAnonKey: "sb_publishable_w0J_8zfw1gopZoVO-9WwCw__yMKOYgG" // publishable / anon key
 };
