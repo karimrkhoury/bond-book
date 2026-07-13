@@ -321,6 +321,8 @@
     let editingId = null;
     let signUpMode = false;
 
+    $("auth-email").value = localStorage.getItem("bb.lastEmail") || "";
+
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -387,6 +389,7 @@
         } else {
           const { error } = await sb.auth.signInWithPassword({ email, password });
           if (error) setAuthMsg(error.message);
+          else localStorage.setItem("bb.lastEmail", email);
         }
       } finally {
         $("auth-submit").disabled = false;
