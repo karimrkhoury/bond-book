@@ -25,6 +25,7 @@
   .holding:active { background:var(--chip); }
   .h-avatar { flex-shrink:0; width:32px; height:32px; border-radius:50%; background:var(--chip);
               display:flex; align-items:center; justify-content:center; font-size:17px; overflow:hidden; }
+  .h-avatar img.flag { width:100%; height:100%; }
   .h-avatar.mono { font-size:15px; font-weight:700; color:var(--muted); }
   .h-left { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
   .h-right { flex-shrink:0; display:flex; flex-direction:column; gap:3px; align-items:flex-end; }
@@ -40,7 +41,7 @@
 <body>
   <div class="list">
     <button class="holding">
-      <span class="h-avatar">🇴🇲</span>
+      <span class="h-avatar"><img class="flag" src="https://hatscripts.github.io/circle-flags/flags/om.svg" alt=""></span>
       <span class="h-left">
         <span class="h-name">Oman <span class="h-mty">Aug 2047</span></span>
         <span class="h-sub num">$500,000 nominal</span>
@@ -51,7 +52,7 @@
       </span>
     </button>
     <button class="holding">
-      <span class="h-avatar">🇯🇴</span>
+      <span class="h-avatar"><img class="flag" src="https://hatscripts.github.io/circle-flags/flags/jo.svg" alt=""></span>
       <span class="h-left">
         <span class="h-name">Jordan <span class="h-mty">Oct 2047</span></span>
         <span class="h-sub num">$200,000 nominal</span>

@@ -125,7 +125,8 @@
     background: var(--chip); display: flex; align-items: center; justify-content: center;
     font-size: 17px; overflow: hidden;
   }
-  .h-avatar img { width: 20px; height: 20px; border-radius: 4px; }
+  .h-avatar img.flag { width: 100%; height: 100%; }
+  .h-avatar img.logo { width: 20px; height: 20px; border-radius: 4px; }
   .h-avatar.mono { font-size: 15px; font-weight: 700; color: var(--muted); }
   .h-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .h-right { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
@@ -426,20 +427,21 @@
     }
     const staleDays = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 0;
 
-    // Issuer directory: sovereigns get emoji flags, corporates a favicon domain.
+    // Issuer directory: sovereigns get a country code (circle-flags SVG),
+    // corporates a favicon domain.
     const ISSUERS = [
-      { name: "Abu Dhabi", flag: "🇦🇪" }, { name: "Bahrain", flag: "🇧🇭" },
-      { name: "Brazil", flag: "🇧🇷" }, { name: "Colombia", flag: "🇨🇴" },
-      { name: "Dubai", flag: "🇦🇪" }, { name: "Egypt", flag: "🇪🇬" },
-      { name: "Indonesia", flag: "🇮🇩" }, { name: "Jordan", flag: "🇯🇴" },
-      { name: "Kuwait", flag: "🇰🇼" }, { name: "Lebanon", flag: "🇱🇧" },
-      { name: "Mexico", flag: "🇲🇽" }, { name: "Morocco", flag: "🇲🇦" },
-      { name: "Nigeria", flag: "🇳🇬" }, { name: "Oman", flag: "🇴🇲" },
-      { name: "Pakistan", flag: "🇵🇰" }, { name: "Qatar", flag: "🇶🇦" },
-      { name: "Ras Al Khaimah", flag: "🇦🇪" }, { name: "Saudi Arabia", flag: "🇸🇦" },
-      { name: "Sharjah", flag: "🇦🇪" }, { name: "South Africa", flag: "🇿🇦" },
-      { name: "Turkey", flag: "🇹🇷" }, { name: "United Kingdom", flag: "🇬🇧" },
-      { name: "United States", flag: "🇺🇸" },
+      { name: "Abu Dhabi", cc: "ae" }, { name: "Bahrain", cc: "bh" },
+      { name: "Brazil", cc: "br" }, { name: "Colombia", cc: "co" },
+      { name: "Dubai", cc: "ae" }, { name: "Egypt", cc: "eg" },
+      { name: "Indonesia", cc: "id" }, { name: "Jordan", cc: "jo" },
+      { name: "Kuwait", cc: "kw" }, { name: "Lebanon", cc: "lb" },
+      { name: "Mexico", cc: "mx" }, { name: "Morocco", cc: "ma" },
+      { name: "Nigeria", cc: "ng" }, { name: "Oman", cc: "om" },
+      { name: "Pakistan", cc: "pk" }, { name: "Qatar", cc: "qa" },
+      { name: "Ras Al Khaimah", cc: "ae" }, { name: "Saudi Arabia", cc: "sa" },
+      { name: "Sharjah", cc: "ae" }, { name: "South Africa", cc: "za" },
+      { name: "Turkey", cc: "tr" }, { name: "United Kingdom", cc: "gb" },
+      { name: "United States", cc: "us" },
       { name: "Aramco", domain: "aramco.com" },
       { name: "Ecopetrol", domain: "ecopetrol.com.co" },
       { name: "Pemex", domain: "pemex.com" },
@@ -451,13 +453,13 @@
     };
     function avatar(name) {
       const info = issuerInfo(name);
-      if (info?.flag) return `<span class="h-avatar">${info.flag}</span>`;
-      if (info?.domain) return `<span class="h-avatar"><img src="https://www.google.com/s2/favicons?domain=${info.domain}&sz=64" alt="" loading="lazy"></span>`;
+      if (info?.cc) return `<span class="h-avatar"><img class="flag" src="https://hatscripts.github.io/circle-flags/flags/${info.cc}.svg" alt="" loading="lazy"></span>`;
+      if (info?.domain) return `<span class="h-avatar"><img class="logo" src="https://www.google.com/s2/favicons?domain=${info.domain}&sz=64" alt="" loading="lazy"></span>`;
       return `<span class="h-avatar mono">${esc(String(name || "?").trim().charAt(0).toUpperCase())}</span>`;
     }
 
     $("f-issuer").innerHTML =
-      ISSUERS.map((i) => `<option value="${esc(i.name)}">${i.flag ? i.flag + " " : ""}${esc(i.name)}</option>`).join("") +
+      ISSUERS.map((i) => `<option value="${esc(i.name)}">${esc(i.name)}</option>`).join("") +
       `<option value="__other">Other…</option>`;
     $("f-mty-year").innerHTML =
       `<option value="">Year —</option>` +
