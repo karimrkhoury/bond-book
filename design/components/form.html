@@ -19,8 +19,8 @@
           padding:20px; max-width:420px; display:flex; flex-direction:column; gap:12px; }
   h2 { margin:0 0 4px; font-size:18px; letter-spacing:-0.01em; }
   label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:600; color:var(--muted); }
-  input, select { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line);
-                  border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; }
+  input, select { font:inherit; font-size:16px; color:var(--ink); background:var(--bg); border:1px solid var(--line);
+                  border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; min-height:48px; }
   input:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
   .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .actions { display:flex; gap:10px; margin-top:8px; }
@@ -47,10 +47,10 @@
       </label>
     </div>
     <div class="field-row">
-      <label>Purchase price (% of par)
+      <label>Purchase price %
         <input type="number" value="96.90" inputmode="decimal">
       </label>
-      <label>Current price (% of par)
+      <label>Current price %
         <input type="number" value="98.75" inputmode="decimal">
       </label>
     </div>
