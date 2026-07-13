@@ -365,6 +365,23 @@
     boot();
   }
 
+  // Self-update: GitHub Pages caches for 10 min; compare the server's ETag
+  // on every foreground and reload when a new deploy exists.
+  let pageEtag = null;
+  async function checkForUpdate() {
+    try {
+      const r = await fetch(location.href, { method: "HEAD", cache: "no-store" });
+      const tag = r.headers.get("etag");
+      if (!tag) return;
+      if (pageEtag && tag !== pageEtag) { location.reload(); return; }
+      pageEtag = tag;
+    } catch { /* offline — try again next foreground */ }
+  }
+  checkForUpdate();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkForUpdate();
+  });
+
   function boot() {
     const sb = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
     let holdings = [];
