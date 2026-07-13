@@ -1,0 +1,45 @@
+<!-- @dsCard group="Components" name="Sign in" subtitle="Brand block + email/password card" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bond Book — Sign in</title>
+<style>
+  :root { --bg:#F6F8F7; --surface:#FFFFFF; --ink:#182B27; --muted:#5F7470; --line:#E3E9E7;
+          --accent:#0E7566; --accent-contrast:#FFFFFF;
+          --shadow:0 1px 2px rgba(24,43,39,.06), 0 4px 16px rgba(24,43,39,.05); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0F1514; --surface:#1A2321; --ink:#E9F0EE; --muted:#96A8A3; --line:#2A3634;
+            --accent:#43C9B0; --accent-contrast:#06251F;
+            --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); } }
+  body { margin:0; padding:32px 20px; background:var(--bg); color:var(--ink);
+         font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:360px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+  .brand { text-align:center; }
+  .brand h1 { font-size:28px; font-weight:800; letter-spacing:-0.03em; margin:0 0 4px; }
+  .brand p { color:var(--muted); margin:0; font-size:15px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow);
+          padding:16px; display:flex; flex-direction:column; gap:12px; }
+  label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:600; color:var(--muted); }
+  input { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line);
+          border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; }
+  input:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
+  .primary-btn { background:var(--accent); color:var(--accent-contrast); border:none; border-radius:10px;
+                 font:inherit; font-size:16px; font-weight:700; padding:13px; cursor:pointer; margin-top:4px; }
+  .ghost-btn { background:none; border:none; color:var(--accent); font:inherit; font-size:15px;
+               font-weight:600; cursor:pointer; text-align:center; padding:4px 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><h1>Bond Book</h1><p>Your bond holdings, in one place.</p></div>
+    <div class="card">
+      <label>Email <input type="email" value="dad@example.com"></label>
+      <label>Password <input type="password" value="••••••••"></label>
+      <button class="primary-btn" type="button">Sign in</button>
+      <button class="ghost-btn" type="button">New here? Create an account</button>
+    </div>
+  </div>
+</body>
+</html>

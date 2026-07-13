@@ -1,0 +1,33 @@
+<!-- @dsCard group="Foundations" name="Type scale" subtitle="System stack, tabular numerals for money" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bond Book — Type scale</title>
+<style>
+  :root { --bg:#F6F8F7; --ink:#182B27; --muted:#5F7470; --chip:#EAF1EF; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0F1514; --ink:#E9F0EE; --muted:#96A8A3; --chip:#233029; } }
+  body { margin:0; padding:24px; background:var(--bg); color:var(--ink);
+         font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  .row { display:flex; align-items:baseline; gap:16px; padding:10px 0; }
+  .spec { font-size:11px; color:var(--muted); font-family:ui-monospace,"SF Mono",Menlo,monospace; width:110px; flex-shrink:0; }
+  .brand { font-size:28px; font-weight:800; letter-spacing:-0.03em; }
+  .title { font-size:20px; font-weight:700; letter-spacing:-0.02em; }
+  .money { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .body  { font-size:16px; }
+  .sub   { font-size:13px; color:var(--muted); }
+  .label { font-size:12px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+  .isin  { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:12px; background:var(--chip); border-radius:5px; padding:2px 6px; }
+</style>
+</head>
+<body>
+  <div class="row"><span class="spec">28 / 800</span><span class="brand">Bond Book</span></div>
+  <div class="row"><span class="spec">20 / 700</span><span class="title">Screen title</span></div>
+  <div class="row"><span class="spec">20 / 700 tnum</span><span class="money">$1,234,567.89</span></div>
+  <div class="row"><span class="spec">16 / 400</span><span class="body">Body — form fields and running text</span></div>
+  <div class="row"><span class="spec">13 / 400</span><span class="sub">Secondary — quantities, price freshness</span></div>
+  <div class="row"><span class="spec">12 / 600 caps</span><span class="label">Section label</span></div>
+  <div class="row"><span class="spec">12 mono</span><span class="isin">US912810TZ12</span></div>
+</body>
+</html>

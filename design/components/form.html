@@ -1,0 +1,56 @@
+<!-- @dsCard group="Components" name="Editor form" subtitle="Inputs, selects, primary / secondary / danger actions" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bond Book — Editor form</title>
+<style>
+  :root { --bg:#F6F8F7; --surface:#FFFFFF; --ink:#182B27; --muted:#5F7470; --line:#E3E9E7;
+          --accent:#0E7566; --accent-contrast:#FFFFFF; --chip:#EAF1EF; --danger:#B42318;
+          --shadow:0 1px 2px rgba(24,43,39,.06), 0 4px 16px rgba(24,43,39,.05); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0F1514; --surface:#1A2321; --ink:#E9F0EE; --muted:#96A8A3; --line:#2A3634;
+            --accent:#43C9B0; --accent-contrast:#06251F; --chip:#233029; --danger:#F87171;
+            --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); } }
+  body { margin:0; padding:20px; background:var(--bg); color:var(--ink);
+         font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+          padding:20px; max-width:420px; display:flex; flex-direction:column; gap:12px; }
+  h2 { margin:0 0 4px; font-size:18px; letter-spacing:-0.01em; }
+  label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:600; color:var(--muted); }
+  input, select { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line);
+                  border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; }
+  input:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .actions { display:flex; gap:10px; margin-top:8px; }
+  .primary-btn { flex:1; background:var(--accent); color:var(--accent-contrast); border:none; border-radius:10px;
+                 font:inherit; font-size:16px; font-weight:700; padding:13px; cursor:pointer; }
+  .secondary-btn { flex:1; background:var(--chip); color:var(--ink); border:none; border-radius:10px;
+                   font:inherit; font-size:16px; font-weight:600; padding:13px; cursor:pointer; }
+  .danger-btn { background:none; border:none; color:var(--danger); font:inherit; font-size:15px;
+                font-weight:600; cursor:pointer; padding:10px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>Edit bond</h2>
+    <label>Name
+      <input type="text" value="US Treasury 4.5% 2033">
+    </label>
+    <div class="field-row">
+      <label>Clean price (% of par)
+        <input type="number" value="98.75" inputmode="decimal">
+      </label>
+      <label>Currency
+        <select><option selected>USD</option><option>EUR</option><option>AED</option></select>
+      </label>
+    </div>
+    <div class="actions">
+      <button class="secondary-btn" type="button">Cancel</button>
+      <button class="primary-btn" type="button">Save</button>
+    </div>
+    <button class="danger-btn" type="button">Delete this bond</button>
+  </div>
+</body>
+</html>

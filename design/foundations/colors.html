@@ -1,0 +1,52 @@
+<!-- @dsCard group="Foundations" name="Color tokens" subtitle="Light & dark palettes, teal-biased neutrals" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bond Book — Color tokens</title>
+<style>
+  body { margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #ECEFEE; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 720px; }
+  .pane { border-radius: 14px; padding: 16px; }
+  .pane h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 12px; }
+  .swatches { display: flex; flex-direction: column; gap: 8px; }
+  .swatch { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .chip { width: 36px; height: 28px; border-radius: 7px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(127,127,127,.25); }
+  .name { font-weight: 600; }
+  .hex { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; opacity: 0.7; margin-left: auto; }
+  .light { background: #F6F8F7; color: #182B27; }
+  .dark { background: #0F1514; color: #E9F0EE; }
+</style>
+</head>
+<body>
+  <div class="panes">
+    <div class="pane light">
+      <h2>Light</h2>
+      <div class="swatches">
+        <div class="swatch"><span class="chip" style="background:#F6F8F7"></span><span class="name">bg</span><span class="hex">#F6F8F7</span></div>
+        <div class="swatch"><span class="chip" style="background:#FFFFFF"></span><span class="name">surface</span><span class="hex">#FFFFFF</span></div>
+        <div class="swatch"><span class="chip" style="background:#182B27"></span><span class="name">ink</span><span class="hex">#182B27</span></div>
+        <div class="swatch"><span class="chip" style="background:#5F7470"></span><span class="name">muted</span><span class="hex">#5F7470</span></div>
+        <div class="swatch"><span class="chip" style="background:#E3E9E7"></span><span class="name">line</span><span class="hex">#E3E9E7</span></div>
+        <div class="swatch"><span class="chip" style="background:#0E7566"></span><span class="name">accent</span><span class="hex">#0E7566</span></div>
+        <div class="swatch"><span class="chip" style="background:#EAF1EF"></span><span class="name">chip</span><span class="hex">#EAF1EF</span></div>
+        <div class="swatch"><span class="chip" style="background:#B42318"></span><span class="name">danger</span><span class="hex">#B42318</span></div>
+      </div>
+    </div>
+    <div class="pane dark">
+      <h2>Dark</h2>
+      <div class="swatches">
+        <div class="swatch"><span class="chip" style="background:#0F1514"></span><span class="name">bg</span><span class="hex">#0F1514</span></div>
+        <div class="swatch"><span class="chip" style="background:#1A2321"></span><span class="name">surface</span><span class="hex">#1A2321</span></div>
+        <div class="swatch"><span class="chip" style="background:#E9F0EE"></span><span class="name">ink</span><span class="hex">#E9F0EE</span></div>
+        <div class="swatch"><span class="chip" style="background:#96A8A3"></span><span class="name">muted</span><span class="hex">#96A8A3</span></div>
+        <div class="swatch"><span class="chip" style="background:#2A3634"></span><span class="name">line</span><span class="hex">#2A3634</span></div>
+        <div class="swatch"><span class="chip" style="background:#43C9B0"></span><span class="name">accent</span><span class="hex">#43C9B0</span></div>
+        <div class="swatch"><span class="chip" style="background:#233029"></span><span class="name">chip</span><span class="hex">#233029</span></div>
+        <div class="swatch"><span class="chip" style="background:#F87171"></span><span class="name">danger</span><span class="hex">#F87171</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
