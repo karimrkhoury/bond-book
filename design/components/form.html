@@ -1,4 +1,4 @@
-<!-- @dsCard group="Components" name="Editor form" subtitle="Short name, maturity, purchase & current price, actions" -->
+<!-- @dsCard group="Components" name="Editor form" subtitle="Grouped sections: bond / position / prices, stacked actions, month picker" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -18,15 +18,17 @@
   .card { background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
           padding:20px; max-width:420px; display:flex; flex-direction:column; gap:12px; }
   h2 { margin:0 0 4px; font-size:18px; letter-spacing:-0.01em; }
+  .form-section { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+                  color:var(--muted); margin:8px 0 -2px; }
   label { display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:600; color:var(--muted); }
   input, select { font:inherit; font-size:16px; color:var(--ink); background:var(--bg); border:1px solid var(--line);
                   border-radius:10px; padding:12px 14px; width:100%; box-sizing:border-box; min-height:48px; }
   input:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
-  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .actions { display:flex; gap:10px; margin-top:8px; }
-  .primary-btn { flex:1; background:var(--accent); color:var(--accent-contrast); border:none; border-radius:10px;
+  .field-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+  .editor-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .primary-btn { background:var(--accent); color:var(--accent-contrast); border:none; border-radius:10px;
                  font:inherit; font-size:16px; font-weight:700; padding:13px; cursor:pointer; }
-  .secondary-btn { flex:1; background:var(--chip); color:var(--ink); border:none; border-radius:10px;
+  .secondary-btn { background:var(--chip); color:var(--ink); border:none; border-radius:10px;
                    font:inherit; font-size:16px; font-weight:600; padding:13px; cursor:pointer; }
   .danger-btn { background:none; border:none; color:var(--danger); font:inherit; font-size:15px;
                 font-weight:600; cursor:pointer; padding:10px; }
@@ -35,28 +37,39 @@
 <body>
   <div class="card">
     <h2>Edit bond</h2>
-    <label>Short name
-      <input type="text" value="UST 4.5% 2033">
+    <p class="form-section">Bond</p>
+    <label>Issuer name
+      <input type="text" value="Oman">
     </label>
     <div class="field-row">
-      <label>Maturity date
-        <input type="date" value="2033-03-15">
+      <label>Maturity
+        <input type="month" value="2047-08">
       </label>
       <label>Currency
         <select><option selected>USD</option><option>EUR</option><option>AED</option></select>
       </label>
     </div>
+    <p class="form-section">Position</p>
     <div class="field-row">
-      <label>Purchase price %
-        <input type="number" value="96.90" inputmode="decimal">
+      <label>Face value
+        <input type="number" value="500000" inputmode="decimal">
       </label>
-      <label>Current price %
-        <input type="number" value="98.75" inputmode="decimal">
+      <label>Quantity
+        <input type="number" value="1" inputmode="decimal">
       </label>
     </div>
-    <div class="actions">
-      <button class="secondary-btn" type="button">Cancel</button>
+    <p class="form-section">Prices · % of par</p>
+    <div class="field-row">
+      <label>Purchase
+        <input type="number" placeholder="optional" inputmode="decimal">
+      </label>
+      <label>Current
+        <input type="number" value="106" inputmode="decimal">
+      </label>
+    </div>
+    <div class="editor-actions">
       <button class="primary-btn" type="button">Save</button>
+      <button class="secondary-btn" type="button">Cancel</button>
     </div>
     <button class="danger-btn" type="button">Delete this bond</button>
   </div>

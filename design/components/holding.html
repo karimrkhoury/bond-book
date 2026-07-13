@@ -26,6 +26,7 @@
   .h-left { min-width:0; display:flex; flex-direction:column; gap:3px; }
   .h-right { flex-shrink:0; display:flex; flex-direction:column; gap:3px; align-items:flex-end; }
   .h-name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .h-mty { font-weight:400; color:var(--muted); }
   .h-sub { font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .h-value { font-weight:600; }
   .h-meta { font-size:13px; color:var(--muted); }
@@ -37,8 +38,8 @@
   <div class="list">
     <button class="holding">
       <span class="h-left">
-        <span class="h-name">Oman 2047</span>
-        <span class="h-sub num">$500,000 nominal · Aug 2047</span>
+        <span class="h-name">Oman <span class="h-mty">Aug 2047</span></span>
+        <span class="h-sub num">$500,000 nominal</span>
       </span>
       <span class="h-right">
         <span class="h-value num">$530,000.00</span>
@@ -57,8 +58,8 @@
     </button>
     <button class="holding">
       <span class="h-left">
-        <span class="h-name">Ecopetrol 2045</span>
-        <span class="h-sub num">$105,000 nominal · May 2045 · 12d-old price</span>
+        <span class="h-name">Ecopetrol <span class="h-mty">May 2045</span></span>
+        <span class="h-sub num">$105,000 nominal · 12d-old price</span>
       </span>
       <span class="h-right">
         <span class="h-value num">$86,100.00</span>

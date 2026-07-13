@@ -123,6 +123,7 @@
   .h-left { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .h-right { flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
   .h-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-mty { font-weight: 400; color: var(--muted); }
   .h-sub { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .h-value { font-weight: 600; }
   .h-meta { font-size: 13px; color: var(--muted); }
@@ -194,10 +195,14 @@
   dialog::backdrop { background: rgba(10, 18, 16, 0.5); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 16px; font-size: 18px; letter-spacing: -0.01em; }
   .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-  .dialog-actions { display: flex; gap: 10px; margin-top: 8px; }
-  .dialog-actions .primary-btn { flex: 1; margin: 0; }
+  .editor-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .editor-actions .primary-btn { margin: 0; }
+  .form-section {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); margin: 8px 0 -2px;
+  }
   .secondary-btn {
-    flex: 1; background: var(--chip); color: var(--ink);
+    background: var(--chip); color: var(--ink);
     border: none; border-radius: 10px; font: inherit; font-size: 16px; font-weight: 600;
     padding: 13px; cursor: pointer;
   }
@@ -260,12 +265,13 @@
   <div class="sheet-handle"></div>
   <h2 id="editor-title">Add bond</h2>
   <form id="editor-form">
-    <label>Short name
-      <input id="f-name" type="text" required placeholder="e.g. UST 4.5% 2033" autocomplete="off">
+    <p class="form-section">Bond</p>
+    <label>Issuer name
+      <input id="f-name" type="text" required placeholder="e.g. Oman" autocomplete="off" autocapitalize="words">
     </label>
     <div class="field-row">
-      <label>ISIN <span style="font-weight:400">(optional)</span>
-        <input id="f-isin" type="text" autocomplete="off" autocapitalize="characters" placeholder="US912810TZ12">
+      <label>Maturity
+        <input id="f-maturity" type="month" placeholder="YYYY-MM">
       </label>
       <label>Currency
         <select id="f-currency">
@@ -275,29 +281,31 @@
         </select>
       </label>
     </div>
+    <p class="form-section">Position</p>
     <div class="field-row">
-      <label>Maturity date
-        <input id="f-maturity" type="date">
-      </label>
       <label>Face value
-        <input id="f-face" type="number" step="any" min="0" inputmode="decimal" required placeholder="per unit, e.g. 1000">
+        <input id="f-face" type="number" step="any" min="0" inputmode="decimal" required placeholder="e.g. 1000">
+      </label>
+      <label>Quantity
+        <input id="f-qty" type="number" step="any" min="0" inputmode="decimal" required placeholder="e.g. 100">
       </label>
     </div>
+    <p class="form-section">Prices · % of par</p>
     <div class="field-row">
-      <label>Quantity
-        <input id="f-qty" type="number" step="any" min="0" inputmode="decimal" required placeholder="10">
-      </label>
-      <label>Purchase price %
+      <label>Purchase
         <input id="f-cost" type="number" step="any" min="0" inputmode="decimal" placeholder="optional">
       </label>
+      <label>Current
+        <input id="f-price" type="number" step="any" min="0" inputmode="decimal" required placeholder="98.75">
+      </label>
     </div>
-    <label>Current price %
-      <input id="f-price" type="number" step="any" min="0" inputmode="decimal" required placeholder="98.75">
+    <label>ISIN <span style="font-weight:400">(optional)</span>
+      <input id="f-isin" type="text" autocomplete="off" autocapitalize="characters" placeholder="US912810TZ12">
     </label>
     <p id="editor-msg" class="form-msg"></p>
-    <div class="dialog-actions">
-      <button type="button" class="secondary-btn" id="editor-cancel">Cancel</button>
+    <div class="editor-actions">
       <button type="submit" class="primary-btn" id="editor-save">Save</button>
+      <button type="button" class="secondary-btn" id="editor-cancel">Cancel</button>
     </div>
     <button type="button" class="danger-btn" id="editor-delete" hidden>Delete this bond</button>
   </form>
@@ -409,7 +417,7 @@
 
     // ---- data ----
     async function refresh() {
-      const { data, error } = await sb.from("holdings").select("*").order("name");
+      const { data, error } = await sb.from("holdings").select("*").order("name").order("maturity_date");
       if (error) {
         $("list").innerHTML = `<p class="empty">Could not load holdings: ${esc(error.message)}</p>`;
         return;
@@ -454,7 +462,6 @@
       $("list-label").hidden = false;
       listEl.innerHTML = holdings.map((h) => {
         const bits = [money0(nominalOf(h), h.currency) + " nominal"];
-        if (h.maturity_date) bits.push(maturityLabel(h.maturity_date));
         const stale = staleDays(h.priced_at);
         if (stale > 7) bits.push(`${stale}d-old price`);
         const pnl = pnlOf(h);
@@ -466,7 +473,7 @@
         return `
         <button class="holding" data-id="${esc(h.id)}">
           <span class="h-left">
-            <span class="h-name">${esc(h.name)}</span>
+            <span class="h-name">${esc(h.name)}${h.maturity_date ? ` <span class="h-mty">${maturityLabel(h.maturity_date)}</span>` : ""}</span>
             <span class="h-sub num">${bits.join(" · ")}</span>
           </span>
           <span class="h-right">
@@ -492,7 +499,7 @@
       $("f-name").value = h?.name || "";
       $("f-isin").value = h?.isin || "";
       $("f-currency").value = h?.currency || "USD";
-      $("f-maturity").value = h?.maturity_date || "";
+      $("f-maturity").value = (h?.maturity_date || "").slice(0, 7);
       $("f-face").value = h?.face_value ?? "";
       $("f-qty").value = h?.quantity ?? "";
       $("f-cost").value = h?.cost_price ?? "";
@@ -514,7 +521,7 @@
         name: $("f-name").value.trim(),
         isin: $("f-isin").value.trim().toUpperCase() || null,
         currency: $("f-currency").value,
-        maturity_date: $("f-maturity").value || null,
+        maturity_date: $("f-maturity").value ? $("f-maturity").value + "-01" : null,
         face_value: Number($("f-face").value),
         quantity: Number($("f-qty").value),
         cost_price: $("f-cost").value === "" ? null : Number($("f-cost").value),
