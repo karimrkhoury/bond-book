@@ -1,4 +1,4 @@
-<!-- @dsCard group="Components" name="Editor form" subtitle="Inputs, selects, primary / secondary / danger actions" -->
+<!-- @dsCard group="Components" name="Editor form" subtitle="Short name, maturity, purchase & current price, actions" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -35,15 +35,23 @@
 <body>
   <div class="card">
     <h2>Edit bond</h2>
-    <label>Name
-      <input type="text" value="US Treasury 4.5% 2033">
+    <label>Short name
+      <input type="text" value="UST 4.5% 2033">
     </label>
     <div class="field-row">
-      <label>Clean price (% of par)
-        <input type="number" value="98.75" inputmode="decimal">
+      <label>Maturity date
+        <input type="date" value="2033-03-15">
       </label>
       <label>Currency
         <select><option selected>USD</option><option>EUR</option><option>AED</option></select>
+      </label>
+    </div>
+    <div class="field-row">
+      <label>Purchase price (% of par)
+        <input type="number" value="96.90" inputmode="decimal">
+      </label>
+      <label>Current price (% of par)
+        <input type="number" value="98.75" inputmode="decimal">
       </label>
     </div>
     <div class="actions">

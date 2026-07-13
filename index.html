@@ -20,6 +20,8 @@
     --accent-contrast: #FFFFFF;
     --chip: #EAF1EF;
     --danger: #B42318;
+    --gain: #1A7F37;
+    --loss: #B42318;
     --shadow: 0 1px 2px rgba(24, 43, 39, 0.06), 0 4px 16px rgba(24, 43, 39, 0.05);
   }
   @media (prefers-color-scheme: dark) {
@@ -33,19 +35,21 @@
       --accent-contrast: #06251F;
       --chip: #233029;
       --danger: #F87171;
+      --gain: #4ADE80;
+      --loss: #F87171;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
     }
   }
   :root[data-theme="light"] {
     --bg: #F6F8F7; --surface: #FFFFFF; --ink: #182B27; --muted: #5F7470;
     --line: #E3E9E7; --accent: #0E7566; --accent-contrast: #FFFFFF;
-    --chip: #EAF1EF; --danger: #B42318;
+    --chip: #EAF1EF; --danger: #B42318; --gain: #1A7F37; --loss: #B42318;
     --shadow: 0 1px 2px rgba(24, 43, 39, 0.06), 0 4px 16px rgba(24, 43, 39, 0.05);
   }
   :root[data-theme="dark"] {
     --bg: #0F1514; --surface: #1A2321; --ink: #E9F0EE; --muted: #96A8A3;
     --line: #2A3634; --accent: #43C9B0; --accent-contrast: #06251F;
-    --chip: #233029; --danger: #F87171;
+    --chip: #233029; --danger: #F87171; --gain: #4ADE80; --loss: #F87171;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
@@ -128,6 +132,12 @@
     background: var(--chip); border-radius: 6px; padding: 2px 7px;
   }
   .isin { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+  .h-pnl { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+  .h-pnl .lbl { color: var(--muted); }
+  .h-pnl .val { font-weight: 600; }
+  .pnl-pos { color: var(--gain); }
+  .pnl-neg { color: var(--loss); }
+  .total-pnl { font-size: 15px; font-weight: 600; }
   .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
 
   /* Floating add button */
@@ -244,8 +254,8 @@
 <dialog id="editor">
   <h2 id="editor-title">Add bond</h2>
   <form id="editor-form">
-    <label>Name
-      <input id="f-name" type="text" required placeholder="e.g. US Treasury 4.5% 2033" autocomplete="off">
+    <label>Short name
+      <input id="f-name" type="text" required placeholder="e.g. UST 4.5% 2033" autocomplete="off">
     </label>
     <div class="field-row">
       <label>ISIN <span style="font-weight:400">(optional)</span>
@@ -260,21 +270,24 @@
       </label>
     </div>
     <div class="field-row">
+      <label>Maturity date
+        <input id="f-maturity" type="date">
+      </label>
       <label>Face value per unit
         <input id="f-face" type="number" step="any" min="0" inputmode="decimal" required placeholder="1000">
       </label>
+    </div>
+    <div class="field-row">
       <label>Quantity
         <input id="f-qty" type="number" step="any" min="0" inputmode="decimal" required placeholder="10">
       </label>
-    </div>
-    <div class="field-row">
-      <label>Clean price (% of par)
-        <input id="f-price" type="number" step="any" min="0" inputmode="decimal" required placeholder="98.75">
-      </label>
-      <label>Accrued interest <span style="font-weight:400">(total)</span>
-        <input id="f-accrued" type="number" step="any" min="0" inputmode="decimal" placeholder="0">
+      <label>Purchase price (% of par)
+        <input id="f-cost" type="number" step="any" min="0" inputmode="decimal" required placeholder="100">
       </label>
     </div>
+    <label>Current price (% of par)
+      <input id="f-price" type="number" step="any" min="0" inputmode="decimal" required placeholder="98.75">
+    </label>
     <p id="editor-msg" class="form-msg"></p>
     <div class="dialog-actions">
       <button type="button" class="secondary-btn" id="editor-cancel">Cancel</button>
@@ -319,7 +332,19 @@
       }
     }
     const nominalOf = (h) => Number(h.face_value) * Number(h.quantity);
-    const marketOf = (h) => nominalOf(h) * Number(h.clean_price) / 100 + Number(h.accrued || 0);
+    const marketOf = (h) => nominalOf(h) * Number(h.clean_price) / 100;
+    const pnlOf = (h) => nominalOf(h) * (Number(h.clean_price) - Number(h.cost_price)) / 100;
+
+    function signedMoney(v, ccy) {
+      try {
+        return new Intl.NumberFormat(undefined, { style: "currency", currency: ccy, signDisplay: "exceptZero" }).format(v);
+      } catch {
+        return (v >= 0 ? "+" : "") + v.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + ccy;
+      }
+    }
+    const signedPct = (v) => new Intl.NumberFormat(undefined, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 2 }).format(v);
+    const maturityLabel = (d) =>
+      d ? new Date(d + "T00:00:00").toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "";
 
     function agoLabel(iso) {
       if (!iso) return "";
@@ -394,9 +419,10 @@
 
       const byCcy = new Map();
       for (const h of holdings) {
-        const t = byCcy.get(h.currency) || { nominal: 0, market: 0 };
+        const t = byCcy.get(h.currency) || { nominal: 0, market: 0, pnl: 0 };
         t.nominal += nominalOf(h);
         t.market += marketOf(h);
+        t.pnl += pnlOf(h);
         byCcy.set(h.currency, t);
       }
       totalsEl.innerHTML = [...byCcy.entries()].map(([ccy, t]) => `
@@ -404,14 +430,19 @@
           <span class="total-ccy">${esc(ccy)}</span>
           <div class="total-line"><span class="total-label">Market value</span><span class="total-market num">${money(t.market, ccy)}</span></div>
           <div class="total-line"><span class="total-label">Nominal value</span><span class="total-nominal num">${money(t.nominal, ccy)}</span></div>
+          <div class="total-line"><span class="total-label">Unrealized P&amp;L</span><span class="total-pnl num ${t.pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(t.pnl, ccy)}</span></div>
         </div>`).join("");
 
       $("list-label").hidden = false;
       listEl.innerHTML = holdings.map((h) => {
         const qty = Number(h.quantity).toLocaleString();
         const face = Number(h.face_value).toLocaleString();
+        const maturity = h.maturity_date ? `${maturityLabel(h.maturity_date)} · ` : "";
         const isin = h.isin ? ` · <span class="isin">${esc(h.isin)}</span>` : "";
         const priced = h.priced_at ? ` · ${agoLabel(h.priced_at)}` : "";
+        const pnl = pnlOf(h);
+        const cost = Number(h.cost_price);
+        const pct = cost > 0 ? ` (${signedPct(Number(h.clean_price) / cost - 1)})` : "";
         return `
         <button class="card holding" data-id="${esc(h.id)}">
           <span class="h-top">
@@ -419,8 +450,12 @@
             <span class="h-market num">${money(marketOf(h), h.currency)}</span>
           </span>
           <span class="h-sub">
-            <span class="h-detail num">${qty} × ${face} = ${money(nominalOf(h), h.currency)}${isin}${priced}</span>
+            <span class="h-detail num">${maturity}${qty} × ${face} = ${money(nominalOf(h), h.currency)}${isin}${priced}</span>
             <span class="h-price num">${Number(h.clean_price).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+          </span>
+          <span class="h-pnl">
+            <span class="lbl">Unrealized P&amp;L</span>
+            <span class="val num ${pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(pnl, h.currency)}${pct}</span>
           </span>
         </button>`;
       }).join("");
@@ -441,10 +476,11 @@
       $("f-name").value = h?.name || "";
       $("f-isin").value = h?.isin || "";
       $("f-currency").value = h?.currency || "USD";
+      $("f-maturity").value = h?.maturity_date || "";
       $("f-face").value = h?.face_value ?? "";
       $("f-qty").value = h?.quantity ?? "";
+      $("f-cost").value = h?.cost_price ?? "";
       $("f-price").value = h?.clean_price ?? "";
-      $("f-accrued").value = h?.accrued ?? "";
       editor.showModal();
     }
 
@@ -458,10 +494,11 @@
         name: $("f-name").value.trim(),
         isin: $("f-isin").value.trim().toUpperCase() || null,
         currency: $("f-currency").value,
+        maturity_date: $("f-maturity").value || null,
         face_value: Number($("f-face").value),
         quantity: Number($("f-qty").value),
+        cost_price: Number($("f-cost").value),
         clean_price: Number($("f-price").value),
-        accrued: Number($("f-accrued").value || 0),
       };
       if (!original || Number(original.clean_price) !== row.clean_price) {
         row.priced_at = new Date().toISOString();

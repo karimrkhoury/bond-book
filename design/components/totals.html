@@ -1,4 +1,4 @@
-<!-- @dsCard group="Components" name="Portfolio totals" subtitle="Per-currency market & nominal value" -->
+<!-- @dsCard group="Components" name="Portfolio totals" subtitle="Per-currency market, nominal & unrealized P&L" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,9 +7,11 @@
 <title>Bond Book — Portfolio totals</title>
 <style>
   :root { --bg:#F6F8F7; --surface:#FFFFFF; --ink:#182B27; --muted:#5F7470; --line:#E3E9E7; --chip:#EAF1EF;
+          --gain:#1A7F37; --loss:#B42318;
           --shadow:0 1px 2px rgba(24,43,39,.06), 0 4px 16px rgba(24,43,39,.05); }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#0F1514; --surface:#1A2321; --ink:#E9F0EE; --muted:#96A8A3; --line:#2A3634; --chip:#233029;
+            --gain:#4ADE80; --loss:#F87171;
             --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); } }
   body { margin:0; padding:20px; background:var(--bg); color:var(--ink);
          font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
@@ -17,12 +19,15 @@
   .stack { display:flex; flex-direction:column; gap:10px; max-width:400px; }
   .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:16px; }
   .total-row { display:grid; grid-template-columns:auto 1fr; gap:4px 16px; align-items:baseline; }
-  .total-ccy { grid-row:span 2; align-self:center; font-size:13px; font-weight:700; letter-spacing:.06em;
+  .total-ccy { grid-row:span 3; align-self:center; font-size:13px; font-weight:700; letter-spacing:.06em;
                color:var(--muted); background:var(--chip); border-radius:8px; padding:6px 9px; }
   .total-line { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
   .total-label { font-size:13px; color:var(--muted); }
   .total-market { font-size:20px; font-weight:700; letter-spacing:-0.01em; }
   .total-nominal { font-size:15px; font-weight:500; color:var(--muted); }
+  .total-pnl { font-size:15px; font-weight:600; }
+  .pnl-pos { color:var(--gain); }
+  .pnl-neg { color:var(--loss); }
 </style>
 </head>
 <body>
@@ -31,11 +36,13 @@
       <span class="total-ccy">USD</span>
       <div class="total-line"><span class="total-label">Market value</span><span class="total-market num">$127,431.50</span></div>
       <div class="total-line"><span class="total-label">Nominal value</span><span class="total-nominal num">$130,000.00</span></div>
+      <div class="total-line"><span class="total-label">Unrealized P&amp;L</span><span class="total-pnl num pnl-pos">+$2,150.00</span></div>
     </div>
     <div class="card total-row">
       <span class="total-ccy">EUR</span>
-      <div class="total-line"><span class="total-label">Market value</span><span class="total-market num">€51,209.00</span></div>
+      <div class="total-line"><span class="total-label">Market value</span><span class="total-market num">€50,959.00</span></div>
       <div class="total-line"><span class="total-label">Nominal value</span><span class="total-nominal num">€50,000.00</span></div>
+      <div class="total-line"><span class="total-label">Unrealized P&amp;L</span><span class="total-pnl num pnl-neg">−€541.00</span></div>
     </div>
   </div>
 </body>

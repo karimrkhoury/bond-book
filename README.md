@@ -5,7 +5,8 @@ holding and per currency. Frontend on GitHub Pages, data and auth on Supabase.
 Designed to be added to an iPhone home screen from Safari.
 
 - **Nominal value** = face value per unit × quantity
-- **Market value** = nominal × clean price / 100 + accrued interest
+- **Market value** = nominal × current clean price / 100
+- **Unrealized P&L** = nominal × (current price − purchase price) / 100
 
 Each account sees only its own holdings (Postgres row-level security), so several
 family members can share the same URL.

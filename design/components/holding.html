@@ -1,4 +1,4 @@
-<!-- @dsCard group="Components" name="Holding row" subtitle="Name, market value, qty × face, price badge, freshness" -->
+<!-- @dsCard group="Components" name="Holding row" subtitle="Short name, maturity, qty × face, price badge, unrealized P&L" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,9 +7,11 @@
 <title>Bond Book — Holding row</title>
 <style>
   :root { --bg:#F6F8F7; --surface:#FFFFFF; --ink:#182B27; --muted:#5F7470; --line:#E3E9E7; --chip:#EAF1EF;
+          --gain:#1A7F37; --loss:#B42318;
           --shadow:0 1px 2px rgba(24,43,39,.06), 0 4px 16px rgba(24,43,39,.05); }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#0F1514; --surface:#1A2321; --ink:#E9F0EE; --muted:#96A8A3; --line:#2A3634; --chip:#233029;
+            --gain:#4ADE80; --loss:#F87171;
             --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); } }
   body { margin:0; padding:20px; background:var(--bg); color:var(--ink);
          font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
@@ -24,23 +26,30 @@
   .h-detail { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .h-price { flex-shrink:0; font-size:12px; font-weight:600; background:var(--chip); border-radius:6px; padding:2px 7px; }
   .isin { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:12px; }
+  .h-pnl { display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+  .h-pnl .lbl { color:var(--muted); }
+  .h-pnl .val { font-weight:600; }
+  .pnl-pos { color:var(--gain); }
+  .pnl-neg { color:var(--loss); }
 </style>
 </head>
 <body>
   <div class="list">
     <div class="card holding">
-      <span class="h-top"><span class="h-name">US Treasury 4.5% 2033</span><span class="h-market num">$98,812.50</span></span>
+      <span class="h-top"><span class="h-name">UST 4.5% 2033</span><span class="h-market num">$98,750.00</span></span>
       <span class="h-sub">
-        <span class="h-detail num">100 × 1,000 = $100,000.00 · <span class="isin">US912810TZ12</span> · priced today</span>
+        <span class="h-detail num">Mar 2033 · 100 × 1,000 = $100,000.00 · <span class="isin">US912810TZ12</span> · priced today</span>
         <span class="h-price num">98.75</span>
       </span>
+      <span class="h-pnl"><span class="lbl">Unrealized P&amp;L</span><span class="val num pnl-pos">+$1,850.00 (+1.91%)</span></span>
     </div>
     <div class="card holding">
-      <span class="h-top"><span class="h-name">Mercedes-Benz 3.7% 2029</span><span class="h-market num">€51,209.00</span></span>
+      <span class="h-top"><span class="h-name">Mercedes 3.7% 2029</span><span class="h-market num">€50,959.00</span></span>
       <span class="h-sub">
-        <span class="h-detail num">50 × 1,000 = €50,000.00 · <span class="isin">DE000A3LH6T7</span> · priced 3d ago</span>
+        <span class="h-detail num">May 2029 · 50 × 1,000 = €50,000.00 · <span class="isin">DE000A3LH6T7</span> · priced 3d ago</span>
         <span class="h-price num">101.918</span>
       </span>
+      <span class="h-pnl"><span class="lbl">Unrealized P&amp;L</span><span class="val num pnl-neg">−€541.00 (−1.05%)</span></span>
     </div>
   </div>
 </body>
