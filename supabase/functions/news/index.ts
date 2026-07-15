@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
         .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
         .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ").trim();
 
+    // Google News RSS ignores query exclusions, so drop sports stragglers here.
+    const SPORTS = /\b(baseball|home run|derby|NBA|NFL|NHL|MLB|cardinals|dodgers|yankees|Barry Bonds|Jordan Walker|footballer|soccer|Pickford|Premier League|touchdown|playoff|striker|midfielder)\b/i;
     const items = [];
     const re = /<item>([\s\S]*?)<\/item>/g;
     let m;
@@ -49,7 +51,7 @@ Deno.serve(async (req) => {
       const source = srcM ? decode(srcM[2]) : pick("source");
       const domain = srcM ? srcM[1].replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "") : "";
       if (source && title.endsWith(" - " + source)) title = title.slice(0, -(source.length + 3)).trim();
-      if (title && link) items.push({ title, link, pubDate, source, domain });
+      if (title && link && !SPORTS.test(title)) items.push({ title, link, pubDate, source, domain });
     }
     return json({ items });
   } catch (e) {

@@ -189,7 +189,8 @@
     padding: 7px 15px; cursor: pointer;
   }
   .add-pill:active { transform: scale(0.97); }
-  #holdings-page header h1 { flex: 1; text-align: center; }
+  #holdings-page header h1, #news-page header h1 { flex: 1; text-align: center; }
+  .header-spacer { width: 52px; flex-shrink: 0; }
   .news-thumb {
     flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px;
     background: var(--chip); object-fit: contain; padding: 5px;
@@ -345,6 +346,16 @@
   <main><div id="holdings-full"></div></main>
 </section>
 
+<!-- Full news page -->
+<section id="news-page" hidden>
+  <header>
+    <button id="np-back" class="ghost-btn" type="button">‹ Back</button>
+    <h1>Portfolio news</h1>
+    <span class="header-spacer"></span>
+  </header>
+  <main><div id="news-full"></div></main>
+</section>
+
 <!-- Add / edit holding -->
 <dialog id="editor">
   <div class="sheet">
@@ -441,6 +452,7 @@
   function show(name) {
     for (const key of Object.keys(views)) views[key].hidden = key !== name;
     document.getElementById("holdings-page").hidden = true;
+    document.getElementById("news-page").hidden = true;
   }
 
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
@@ -695,21 +707,21 @@
     }
 
     let route = "home";
+    function hidePages() { $("holdings-page").hidden = true; $("news-page").hidden = true; }
     function gotoHoldings() {
-      route = "holdings";
-      $("app").hidden = true;
-      $("holdings-page").hidden = false;
-      renderHoldingsFull();
-      window.scrollTo(0, 0);
+      route = "holdings"; $("app").hidden = true; hidePages();
+      $("holdings-page").hidden = false; renderHoldingsFull(); window.scrollTo(0, 0);
+    }
+    function gotoNews() {
+      route = "news"; $("app").hidden = true; hidePages();
+      $("news-page").hidden = false; renderNewsFull(); window.scrollTo(0, 0);
     }
     function gotoHome() {
-      route = "home";
-      $("holdings-page").hidden = true;
-      $("app").hidden = false;
-      window.scrollTo(0, 0);
+      route = "home"; hidePages(); $("app").hidden = false; window.scrollTo(0, 0);
     }
     $("hp-back").addEventListener("click", gotoHome);
     $("hp-add").addEventListener("click", () => openEditor(null));
+    $("np-back").addEventListener("click", gotoHome);
 
     function totalsByCurrency() {
       const byCcy = new Map();
@@ -928,13 +940,8 @@
       } catch { newsCache = []; }
       renderNews();
     }
-    function renderNews() {
-      const el = $("news");
-      if (!newsCache || !newsCache.length) {
-        el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel"><p class="news-empty">No recent news found for your issuers.</p></div>`;
-        return;
-      }
-      const rows = newsCache.slice(0, 8).map((a) => {
+    function newsRowsHTML(list) {
+      return list.map((a) => {
         const thumb = a.domain
           ? `<img class="news-thumb" src="https://www.google.com/s2/favicons?domain=${esc(a.domain)}&sz=64" alt="" onerror="this.style.visibility='hidden'">`
           : `<span class="news-thumb"></span>`;
@@ -947,7 +954,25 @@
           </span>
         </a>`;
       }).join("");
-      el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel">${rows}</div>`;
+    }
+    function renderNews() {
+      const el = $("news");
+      if (newsCache === null) {
+        el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel"><p class="news-empty">Loading…</p></div>`;
+        return;
+      }
+      if (!newsCache.length) {
+        el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel"><p class="news-empty">No recent news found for your issuers.</p></div>`;
+        return;
+      }
+      const link = newsCache.length > 5
+        ? `<button class="view-all" id="news-viewall" type="button">View all ${newsCache.length}</button>` : "";
+      el.innerHTML = `<div class="feed-head"><p class="section-label">Portfolio news</p>${link}</div><div class="panel">${newsRowsHTML(newsCache.slice(0, 5))}</div>`;
+      const va = $("news-viewall");
+      if (va) va.addEventListener("click", gotoNews);
+    }
+    function renderNewsFull() {
+      $("news-full").innerHTML = `<div class="panel">${newsRowsHTML(newsCache || [])}</div>`;
     }
     function relTime(pub) {
       const t = new Date(pub).getTime();
