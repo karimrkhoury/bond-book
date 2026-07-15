@@ -321,11 +321,11 @@
   <div class="centered">
     <div class="brand"><h1>Bond Book</h1><p>Your bond holdings, in one place.</p></div>
     <form id="auth-form" class="card">
-      <label>Email
-        <input id="auth-email" type="email" autocomplete="email" inputmode="email" required>
+      <label>Username
+        <input id="auth-email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
       </label>
       <label>Password
-        <input id="auth-password" type="password" autocomplete="current-password" required minlength="6">
+        <input id="auth-password" type="password" autocomplete="current-password" required>
       </label>
       <p id="auth-msg" class="form-msg"></p>
       <button id="auth-submit" class="primary-btn" type="submit">Sign in</button>
@@ -687,7 +687,8 @@
 
     $("auth-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = $("auth-email").value.trim();
+      const raw = $("auth-email").value.trim();
+      const email = raw.includes("@") ? raw : `${raw.toLowerCase()}@bondbook.local`;
       const password = $("auth-password").value;
       $("auth-submit").disabled = true;
       setAuthMsg("");
@@ -699,7 +700,7 @@
         } else {
           const { error } = await sb.auth.signInWithPassword({ email, password });
           if (error) setAuthMsg(error.message);
-          else localStorage.setItem("bb.lastEmail", email);
+          else localStorage.setItem("bb.lastEmail", raw);
         }
       } finally {
         $("auth-submit").disabled = false;
