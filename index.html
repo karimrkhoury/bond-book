@@ -364,6 +364,7 @@
 
 <script src="config.js"></script>
 <script src="countries.js"></script>
+<script src="logos.js"></script>
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -466,29 +467,38 @@
     }
     CC_NAMES.sort((a, b) => b.q.length - a.q.length);
 
-    // Domains whose site isn't simply name.com; everything else falls back to a name.com guess.
+    // Bundled corporate logos (logos/<key>.png), indexed by normalized name/alias.
+    const CORP_MAP = new Map();
+    const CORP_NAMES = [];
+    for (const [q, key] of (window.CORP_LOGOS || [])) {
+      if (!CORP_MAP.has(q)) { CORP_MAP.set(q, key); CORP_NAMES.push({ q, key }); }
+    }
+    CORP_NAMES.sort((a, b) => b.q.length - a.q.length);
+
+    // Major issuers we couldn't bundle a logo for; fetched live at runtime as a fallback.
     const CORP_DOMAINS = {
-      aramco: "aramco.com", saudiaramco: "aramco.com", ecopetrol: "ecopetrol.com.co",
-      pemex: "pemex.com", petrobras: "petrobras.com.br", qatarenergy: "qatarenergy.qa",
-      adnoc: "adnoc.ae", dewa: "dewa.gov.ae", taqa: "taqa.com", dpworld: "dpworld.com",
+      berkshire: "berkshirehathaway.com", berkshirehathaway: "berkshirehathaway.com",
+      comcast: "comcast.com", bp: "bp.com", britishpetroleum: "bp.com",
+      pertamina: "pertamina.com", gazprom: "gazprom.com", taqa: "taqa.com",
     };
 
-    function matchCountry(name) {
+    function matchIn(index, map, name) {
       const q = norm(name);
       if (!q) return null;
-      if (NAME_TO_CC.has(q)) return NAME_TO_CC.get(q);
+      if (map.has(q)) return map.get(q);
       const hay = " " + q + " ";
-      for (const { q: cand, cc } of CC_NAMES) {
-        if (hay.includes(" " + cand + " ")) return cc; // whole-word, multi-word ok
-      }
+      for (const it of index) if (hay.includes(" " + it.q + " ")) return it.cc || it.key;
       return null;
     }
-    function corpDomain(name) {
-      const key = norm(name).replace(/ /g, "");
-      return CORP_DOMAINS[key] || (key ? key + ".com" : "");
-    }
+    const matchCountry = (name) => matchIn(CC_NAMES, NAME_TO_CC, name);
+    const matchCorp = (name) => matchIn(CORP_NAMES, CORP_MAP, name);
+    const corpDomain = (name) => CORP_DOMAINS[norm(name).replace(/ /g, "")] || "";
+
     function avatar(name) {
       const mono = esc(String(name || "").trim().charAt(0).toUpperCase());
+      // Company logos win over country flags so "Saudi Aramco" is Aramco, not the Saudi flag.
+      const key = matchCorp(name);
+      if (key) return `<span class="h-avatar" data-mono="${mono}"><img class="logo" src="logos/${key}.png" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
       const cc = matchCountry(name);
       if (cc) return `<span class="h-avatar" data-mono="${mono}"><img class="flag" src="flags/${cc}.svg" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
       const domain = corpDomain(name);
