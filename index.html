@@ -107,13 +107,17 @@
   .sum-pnl { font-size: 14px; font-weight: 600; margin-top: 3px; }
   .sum-income { font-size: 14px; color: var(--accent); font-weight: 600; margin-top: 3px; }
 
-  /* Maturity ladder + coupons */
+  /* Time to maturity + coupons */
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 6px 14px; margin: 0 0 24px; }
-  .ladder-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; }
-  .ladder-year { width: 42px; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
-  .ladder-track { flex: 1; height: 20px; background: var(--chip); border-radius: 6px; overflow: hidden; }
-  .ladder-fill { display: block; height: 100%; background: var(--accent); border-radius: 6px; }
-  .ladder-amt { flex-shrink: 0; font-size: 13px; font-weight: 600; text-align: right; }
+  .mat-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .mat-row:last-child { border-bottom: none; }
+  .mat-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+  .mat-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mat-track { height: 8px; background: var(--chip); border-radius: 4px; overflow: hidden; }
+  .mat-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .mat-meta { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 13px; }
+  .mat-when { color: var(--muted); }
+  .mat-time { font-weight: 600; }
   .coupon-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .coupon-row:last-child { border-bottom: none; }
   .coupon-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -344,6 +348,9 @@
         <select id="f-mty-year"></select>
       </label>
     </div>
+    <label>Bought / issued (year, optional — fills the maturity bar)
+      <select id="f-start"></select>
+    </label>
     <p class="form-section">Position</p>
     <div class="field-row">
       <label>Nominal value
@@ -475,6 +482,20 @@
     const monthYearLabel = (year, month) =>
       new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "short", year: "numeric" });
 
+    // Life progress: how far a bond has aged from its start (issue/purchase) toward maturity.
+    function maturityProgress(h) {
+      if (!h.maturity_date) return null;
+      const now = Date.now();
+      const matMs = new Date(h.maturity_date + "T00:00:00").getTime();
+      const yrsLeft = (matMs - now) / (365.25 * 86400000);
+      let pct = null;
+      if (h.start_date) {
+        const startMs = new Date(h.start_date + "T00:00:00").getTime();
+        if (matMs > startMs) pct = Math.min(1, Math.max(0, (now - startMs) / (matMs - startMs)));
+      }
+      return { yrsLeft, pct };
+    }
+
     function signedMoney(v, ccy) {
       try {
         return new Intl.NumberFormat(undefined, { style: "currency", currency: ccy, signDisplay: "exceptZero" }).format(v);
@@ -571,6 +592,10 @@
     $("f-mty-year").innerHTML =
       `<option value="">Year —</option>` +
       Array.from({ length: 46 }, (_, k) => 2025 + k).map((y) => `<option>${y}</option>`).join("");
+    const thisYear = new Date().getFullYear();
+    $("f-start").innerHTML =
+      `<option value="">Year —</option>` +
+      Array.from({ length: thisYear - 1989 }, (_, k) => thisYear - k).map((y) => `<option>${y}</option>`).join("");
     $("f-nominal").addEventListener("input", () => {
       const el = $("f-nominal");
       const raw = el.value.replace(/[^\d.]/g, "");
@@ -672,7 +697,7 @@
         </div>`;
       }).join("");
 
-      renderLadder();
+      renderMaturity();
       renderCoupons();
 
       $("list-label").hidden = false;
@@ -729,29 +754,40 @@
       }
     }
 
-    // Maturity ladder — nominal redeeming per year, as bars.
-    function renderLadder() {
+    // Time to maturity — per bond, a progress bar that fills as the bond ages toward maturity.
+    function renderMaturity() {
       const el = $("ladder");
       const dated = holdings.filter((h) => h.maturity_date);
-      if (dated.length < 1) { el.innerHTML = ""; return; }
-      const ccy = dominantCurrency();
-      const byYear = new Map();
-      for (const h of dated) {
-        const y = Number(h.maturity_date.slice(0, 4));
-        byYear.set(y, (byYear.get(y) || 0) + nominalOf(h));
-      }
-      const years = [...byYear.keys()].sort((a, b) => a - b);
-      const max = Math.max(...byYear.values());
-      const rows = years.map((y) => {
-        const v = byYear.get(y);
-        return `
-        <div class="ladder-row">
-          <span class="ladder-year num">${y}</span>
-          <span class="ladder-track"><span class="ladder-fill" style="width:${Math.max(6, v / max * 100)}%"></span></span>
-          <span class="ladder-amt num">${money0(v, ccy)}</span>
-        </div>`;
-      }).join("");
-      el.innerHTML = `<p class="section-label">Maturity ladder · nominal</p><div class="panel">${rows}</div>`;
+      if (!dated.length) { el.innerHTML = ""; return; }
+      const rows = dated
+        .slice()
+        .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1))
+        .map((h) => {
+          const p = maturityProgress(h);
+          const matured = p.yrsLeft <= 0;
+          const timeLabel = matured
+            ? "matured"
+            : p.yrsLeft < 1
+              ? `${Math.max(1, Math.round(p.yrsLeft * 12))} mo left`
+              : `${p.yrsLeft.toFixed(1)} yrs left`;
+          const pctLabel = p.pct == null ? "" : `${Math.round(p.pct * 100)}% · `;
+          const track = p.pct == null
+            ? ""
+            : `<span class="mat-track"><span class="mat-fill" style="width:${Math.max(3, Math.round(p.pct * 100))}%"></span></span>`;
+          return `
+          <div class="mat-row">
+            ${avatar(h.name)}
+            <span class="mat-left">
+              <span class="mat-name">${esc(h.name)}</span>
+              ${track}
+            </span>
+            <span class="mat-meta">
+              <span class="mat-when">${maturityLabel(h.maturity_date)}</span>
+              <span class="mat-time">${pctLabel}${timeLabel}</span>
+            </span>
+          </div>`;
+        }).join("");
+      el.innerHTML = `<p class="section-label">Time to maturity</p><div class="panel">${rows}</div>`;
     }
 
     // Upcoming coupons — the next few payments across the book.
@@ -775,11 +811,6 @@
       el.innerHTML = `<p class="section-label">Upcoming coupons</p><div class="panel">${rows}</div>`;
     }
 
-    const dominantCurrency = () => {
-      const counts = {};
-      for (const h of holdings) counts[h.currency] = (counts[h.currency] || 0) + 1;
-      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
-    };
 
     // ---- swipe-to-reveal (edit / delete) ----
     const SWIPE_W = 152; // two 76px action buttons
@@ -844,6 +875,7 @@
       updateIssuerPreview();
       $("f-mty-month").value = h?.maturity_date ? h.maturity_date.slice(5, 7) : "";
       $("f-mty-year").value = h?.maturity_date ? h.maturity_date.slice(0, 4) : "";
+      $("f-start").value = h?.start_date ? h.start_date.slice(0, 4) : "";
       $("f-nominal").value = h ? nominalOf(h).toLocaleString("en-US") : "";
       $("f-currency").value = h?.currency || "USD";
       $("f-cost").value = h?.cost_price ?? "";
@@ -877,6 +909,7 @@
         isin: $("f-isin").value.trim().toUpperCase() || null,
         currency: $("f-currency").value,
         maturity_date: year ? `${year}-${month || "01"}-01` : null,
+        start_date: $("f-start").value ? `${$("f-start").value}-01-01` : null,
         face_value: nominal,
         quantity: 1,
         cost_price: $("f-cost").value === "" ? null : Number($("f-cost").value),

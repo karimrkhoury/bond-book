@@ -22,11 +22,15 @@
   .sum-sub { font-size:14px; color:var(--muted); margin-top:5px; }
   .sum-income { font-size:14px; color:var(--accent); font-weight:600; margin-top:3px; }
   .panel { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:6px 14px; margin:0 0 24px; }
-  .ladder-row { display:flex; align-items:center; gap:12px; padding:7px 0; }
-  .ladder-year { width:42px; flex-shrink:0; font-size:13px; font-weight:600; color:var(--muted); }
-  .ladder-track { flex:1; height:20px; background:var(--chip); border-radius:6px; overflow:hidden; }
-  .ladder-fill { display:block; height:100%; background:var(--accent); border-radius:6px; }
-  .ladder-amt { flex-shrink:0; font-size:13px; font-weight:600; text-align:right; }
+  .mat-row { display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+  .mat-row:last-child { border-bottom:none; }
+  .mat-left { flex:1; min-width:0; display:flex; flex-direction:column; gap:7px; }
+  .mat-name { font-weight:600; }
+  .mat-track { height:8px; background:var(--chip); border-radius:4px; overflow:hidden; }
+  .mat-fill { display:block; height:100%; background:var(--accent); border-radius:4px; }
+  .mat-meta { flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:4px; font-size:13px; }
+  .mat-when { color:var(--muted); }
+  .mat-time { font-weight:600; }
   .coupon-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
   .coupon-row:last-child { border-bottom:none; }
   .h-avatar { flex-shrink:0; width:32px; height:32px; border-radius:50%; overflow:hidden; }
@@ -44,12 +48,23 @@
     <div class="sum-sub num">$1,550,000 nominal</div>
     <div class="sum-income num">$93,188/yr income · $7,766/mo · 5.87% yield</div>
 
-    <p class="section-label" style="margin-top:24px">Maturity ladder · nominal</p>
+    <p class="section-label" style="margin-top:24px">Time to maturity</p>
     <div class="panel">
-      <div class="ladder-row"><span class="ladder-year num">2029</span><span class="ladder-track"><span class="ladder-fill" style="width:40%"></span></span><span class="ladder-amt num">$200,000</span></div>
-      <div class="ladder-row"><span class="ladder-year num">2032</span><span class="ladder-track"><span class="ladder-fill" style="width:60%"></span></span><span class="ladder-amt num">$300,000</span></div>
-      <div class="ladder-row"><span class="ladder-year num">2047</span><span class="ladder-track"><span class="ladder-fill" style="width:100%"></span></span><span class="ladder-amt num">$500,000</span></div>
-      <div class="ladder-row"><span class="ladder-year num">2050</span><span class="ladder-track"><span class="ladder-fill" style="width:50%"></span></span><span class="ladder-amt num">$250,000</span></div>
+      <div class="mat-row">
+        <span class="h-avatar"><img src="https://hatscripts.github.io/circle-flags/flags/jo.svg" alt=""></span>
+        <span class="mat-left"><span class="mat-name">Jordan</span><span class="mat-track"><span class="mat-fill" style="width:75%"></span></span></span>
+        <span class="mat-meta"><span class="mat-when">Jan 2029</span><span class="mat-time">75% · 2.5 yrs left</span></span>
+      </div>
+      <div class="mat-row">
+        <span class="h-avatar"><img src="https://hatscripts.github.io/circle-flags/flags/eg.svg" alt=""></span>
+        <span class="mat-left"><span class="mat-name">Egypt</span><span class="mat-track"><span class="mat-fill" style="width:44%"></span></span></span>
+        <span class="mat-meta"><span class="mat-when">May 2032</span><span class="mat-time">44% · 5.8 yrs left</span></span>
+      </div>
+      <div class="mat-row">
+        <span class="h-avatar"><img src="https://hatscripts.github.io/circle-flags/flags/om.svg" alt=""></span>
+        <span class="mat-left"><span class="mat-name">Oman</span><span class="mat-track"><span class="mat-fill" style="width:30%"></span></span></span>
+        <span class="mat-meta"><span class="mat-when">Aug 2047</span><span class="mat-time">30% · 21 yrs left</span></span>
+      </div>
     </div>
 
     <p class="section-label">Upcoming coupons</p>
