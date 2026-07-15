@@ -19,9 +19,10 @@ Deno.serve(async (req) => {
     if (!issuers.length) return json({ items: [] });
 
     const names = issuers.map((n) => `"${n.replace(/["()]/g, "")}"`).join(" OR ");
-    const finance = `(eurobond OR sukuk OR "sovereign bond" OR "government bond" OR "dollar bond" OR bondholders OR "debt issue" OR "bond yield" OR "credit rating" OR "fixed income" OR "bond sale")`;
-    const exclude = `-baseball -"home run" -"Barry Bonds" -NBA -NFL -NHL`;
-    const query = `(${names}) ${finance} ${exclude}`;
+    // Broad: anything that could move these economies, not just bond-specific news.
+    const macro = `(economy OR economic OR bond OR bonds OR sukuk OR eurobond OR inflation OR IMF OR "credit rating" OR rating OR downgrade OR upgrade OR debt OR default OR currency OR devaluation OR deficit OR budget OR "central bank" OR "interest rate" OR GDP OR growth OR fiscal OR sanctions OR election OR reserves OR "foreign investment" OR oil OR "sovereign wealth")`;
+    const exclude = `-baseball -"home run" -"Barry Bonds" -NBA -NFL -NHL -Pickford -footballer -soccer`;
+    const query = `(${names}) ${macro} ${exclude}`;
     const rss = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
 
     const r = await fetch(rss, { headers: { "User-Agent": "Mozilla/5.0 (compatible; BondBook/1.0)" } });
@@ -44,9 +45,11 @@ Deno.serve(async (req) => {
       let title = pick("title");
       const link = pick("link");
       const pubDate = pick("pubDate");
-      const source = pick("source");
+      const srcM = blk.match(/<source url="([^"]+)"[^>]*>([\s\S]*?)<\/source>/);
+      const source = srcM ? decode(srcM[2]) : pick("source");
+      const domain = srcM ? srcM[1].replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "") : "";
       if (source && title.endsWith(" - " + source)) title = title.slice(0, -(source.length + 3)).trim();
-      if (title && link) items.push({ title, link, pubDate, source });
+      if (title && link) items.push({ title, link, pubDate, source, domain });
     }
     return json({ items });
   } catch (e) {

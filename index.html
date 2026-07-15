@@ -105,9 +105,10 @@
   .feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 4px 8px; }
   .feed-head .section-label { margin: 0; }
   .view-all { background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 2px 0; }
-  .news-row { display: flex; flex-direction: column; gap: 3px; padding: 11px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .news-row { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
   .news-row:last-child { border-bottom: none; }
   .news-row:active { opacity: 0.6; }
+  .news-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .news-title { font-weight: 600; font-size: 15px; line-height: 1.32; }
   .news-meta { font-size: 12px; color: var(--muted); }
   .news-empty { color: var(--muted); text-align: center; padding: 16px; margin: 0; }
@@ -179,17 +180,20 @@
   .pnl-neg { color: var(--loss); }
   .empty { text-align: center; color: var(--muted); padding: 32px 16px; }
 
-  /* Floating add button */
-  #add-btn {
-    position: fixed; left: 50%; transform: translateX(-50%);
-    bottom: calc(20px + env(safe-area-inset-bottom));
+  /* Header actions + add pill */
+  .header-actions { display: flex; align-items: center; gap: 14px; }
+  .add-pill {
     background: var(--accent); color: var(--accent-contrast);
     border: none; border-radius: 999px;
-    font: inherit; font-size: 16px; font-weight: 700;
-    padding: 14px 26px; cursor: pointer;
-    box-shadow: 0 4px 20px rgba(14, 117, 102, 0.35);
+    font: inherit; font-size: 14px; font-weight: 700;
+    padding: 7px 15px; cursor: pointer;
   }
-  #add-btn:active { transform: translateX(-50%) scale(0.97); }
+  .add-pill:active { transform: scale(0.97); }
+  #holdings-page header h1 { flex: 1; text-align: center; }
+  .news-thumb {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px;
+    background: var(--chip); object-fit: contain; padding: 5px;
+  }
 
   /* Auth + setup */
   .centered { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; max-width: 400px; margin: 0 auto; padding: 24px; gap: 16px; }
@@ -318,7 +322,10 @@
 <section id="app" hidden>
   <header>
     <h1>Bond Book</h1>
-    <button id="signout" class="ghost-btn" type="button">Sign out</button>
+    <div class="header-actions">
+      <button id="add-btn" class="add-pill" type="button">+ Add</button>
+      <button id="signout" class="ghost-btn" type="button">Sign out</button>
+    </div>
   </header>
   <main>
     <div id="hero"></div>
@@ -326,7 +333,16 @@
     <section id="holdings-wrap" class="feed"><p class="empty">Loading…</p></section>
     <section id="news" class="feed"></section>
   </main>
-  <button id="add-btn" type="button">+ Add bond</button>
+</section>
+
+<!-- Full holdings page -->
+<section id="holdings-page" hidden>
+  <header>
+    <button id="hp-back" class="ghost-btn" type="button">‹ Back</button>
+    <h1>Holdings</h1>
+    <button id="hp-add" class="add-pill" type="button">+ Add</button>
+  </header>
+  <main><div id="holdings-full"></div></main>
 </section>
 
 <!-- Add / edit holding -->
@@ -424,6 +440,7 @@
 
   function show(name) {
     for (const key of Object.keys(views)) views[key].hidden = key !== name;
+    document.getElementById("holdings-page").hidden = true;
   }
 
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
@@ -456,8 +473,6 @@
     let signUpMode = false;
     let userId = null;
     let snapshots = [];
-    let showAllMaturing = false;
-    let showAllHoldings = false;
     let newsCache = null;
     let newsKey = "";
 
@@ -589,11 +604,11 @@
       const mono = esc(String(name || "").trim().charAt(0).toUpperCase());
       // Company logos win over country flags so "Saudi Aramco" is Aramco, not the Saudi flag.
       const key = matchCorp(name);
-      if (key) return `<span class="h-avatar" data-mono="${mono}"><img class="logo" src="logos/${key}.png" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
+      if (key) return `<span class="h-avatar" data-mono="${mono}"><img class="logo" src="logos/${key}.png" alt="" onerror="window.bbBadgeFallback(this)"></span>`;
       const cc = matchCountry(name);
-      if (cc) return `<span class="h-avatar" data-mono="${mono}"><img class="flag" src="flags/${cc}.svg" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
+      if (cc) return `<span class="h-avatar" data-mono="${mono}"><img class="flag" src="flags/${cc}.svg" alt="" onerror="window.bbBadgeFallback(this)"></span>`;
       const domain = corpDomain(name);
-      if (domain) return `<span class="h-avatar" data-mono="${mono}"><img class="logo" src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
+      if (domain) return `<span class="h-avatar" data-mono="${mono}"><img class="logo" src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="" onerror="window.bbBadgeFallback(this)"></span>`;
       return `<span class="h-avatar mono">${mono || "?"}</span>`;
     }
     window.bbBadgeFallback = function (img) {
@@ -675,8 +690,26 @@
       holdings = data;
       await syncSnapshots();
       render();
+      if (route === "holdings") renderHoldingsFull();
       loadNews();
     }
+
+    let route = "home";
+    function gotoHoldings() {
+      route = "holdings";
+      $("app").hidden = true;
+      $("holdings-page").hidden = false;
+      renderHoldingsFull();
+      window.scrollTo(0, 0);
+    }
+    function gotoHome() {
+      route = "home";
+      $("holdings-page").hidden = true;
+      $("app").hidden = false;
+      window.scrollTo(0, 0);
+    }
+    $("hp-back").addEventListener("click", gotoHome);
+    $("hp-add").addEventListener("click", () => openEditor(null));
 
     function totalsByCurrency() {
       const byCcy = new Map();
@@ -771,14 +804,15 @@
         </div>`;
     }
 
-    // Maturing soon: top 3 (soonest), progress bars, view all.
+    // Maturing soon: bonds maturing within 2.5 years, up to 3. Hidden if none.
     function renderMaturing() {
       const el = $("maturing");
-      const dated = holdings.filter((h) => h.maturity_date)
-        .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1));
-      if (!dated.length) { el.innerHTML = ""; return; }
-      const shown = showAllMaturing ? dated : dated.slice(0, 3);
-      const rows = shown.map((h) => {
+      const soon = holdings
+        .filter((h) => h.maturity_date && maturityProgress(h).yrsLeft <= 2.5)
+        .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1))
+        .slice(0, 3);
+      if (!soon.length) { el.innerHTML = ""; return; }
+      const rows = soon.map((h) => {
         const p = maturityProgress(h);
         const timeLabel = p.yrsLeft <= 0 ? "matured"
           : p.yrsLeft < 1 ? `${Math.max(1, Math.round(p.yrsLeft * 12))} mo left`
@@ -798,16 +832,12 @@
             </span>
           </div>`;
       }).join("");
-      el.innerHTML = `${sectionHead("Maturing soon", dated.length, showAllMaturing, "mat")}<div class="panel">${rows}</div>`;
-      wireViewAll(el, "mat");
+      el.innerHTML = `<p class="section-label">Maturing soon</p><div class="panel">${rows}</div>`;
     }
 
-    // Holdings: top 3 by market value, view all, swipe to edit / delete.
-    function renderHoldingsSection() {
-      const el = $("holdings-wrap");
-      const sorted = holdings.slice().sort((a, b) => marketOf(b) - marketOf(a));
-      const shown = showAllHoldings ? sorted : sorted.slice(0, 3);
-      const rows = shown.map((h) => {
+    // One holding row (swipe to edit/delete).
+    function holdingRowsHTML(list) {
+      return list.map((h) => {
         const bits = [money0(nominalOf(h), h.currency) + " nominal"];
         if (hasCoupon(h)) bits.push(`${Number(h.coupon_rate)}% coupon`);
         const stale = staleDays(h.priced_at);
@@ -837,9 +867,9 @@
             </div>
           </div>`;
       }).join("");
-      el.innerHTML = `${sectionHead("Holdings", sorted.length, showAllHoldings, "hold")}<div id="list">${rows}</div>`;
-      wireViewAll(el, "hold");
-      for (const content of el.querySelectorAll(".swipe-content")) {
+    }
+    function wireHoldingRows(scope) {
+      for (const content of scope.querySelectorAll(".swipe-content")) {
         wireSwipe(content, SWIPE_W);
         content.addEventListener("click", () => {
           if (content.dataset.swiped) return;
@@ -847,7 +877,7 @@
           openEditor(holdings.find((h) => h.id === content.dataset.id));
         });
       }
-      for (const b of el.querySelectorAll(".swipe-btn")) {
+      for (const b of scope.querySelectorAll(".swipe-btn")) {
         b.addEventListener("click", async (e) => {
           e.stopPropagation();
           const h = holdings.find((x) => x.id === b.dataset.id);
@@ -860,21 +890,25 @@
         });
       }
     }
+    const byValueDesc = () => holdings.slice().sort((a, b) => marketOf(b) - marketOf(a));
 
-    function sectionHead(title, total, expanded, key) {
-      const link = total > 3
-        ? `<button class="view-all" type="button" data-toggle="${key}">${expanded ? "Show less" : `View all ${total}`}</button>`
-        : "";
-      return `<div class="feed-head"><p class="section-label">${title}</p>${link}</div>`;
+    // Landing: top 3 by market value; "View all" opens the dedicated page.
+    function renderHoldingsSection() {
+      const el = $("holdings-wrap");
+      const sorted = byValueDesc();
+      const link = sorted.length > 3
+        ? `<button class="view-all" id="holdings-viewall" type="button">View all ${sorted.length}</button>` : "";
+      el.innerHTML = `<div class="feed-head"><p class="section-label">Holdings</p>${link}</div><div id="list">${holdingRowsHTML(sorted.slice(0, 3))}</div>`;
+      const va = $("holdings-viewall");
+      if (va) va.addEventListener("click", gotoHoldings);
+      wireHoldingRows(el);
     }
-    function wireViewAll(scope, key) {
-      const btn = scope.querySelector(`[data-toggle="${key}"]`);
-      if (!btn) return;
-      btn.addEventListener("click", () => {
-        if (key === "mat") showAllMaturing = !showAllMaturing;
-        else showAllHoldings = !showAllHoldings;
-        render();
-      });
+
+    // Dedicated page: every holding, sorted by market value.
+    function renderHoldingsFull() {
+      const el = $("holdings-full");
+      el.innerHTML = `<div id="list">${holdingRowsHTML(byValueDesc())}</div>`;
+      wireHoldingRows(el);
     }
 
     // Portfolio news via the Supabase edge function (fetches Google News server-side).
@@ -900,11 +934,19 @@
         el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel"><p class="news-empty">No recent news found for your issuers.</p></div>`;
         return;
       }
-      const rows = newsCache.slice(0, 8).map((a) => `
+      const rows = newsCache.slice(0, 8).map((a) => {
+        const thumb = a.domain
+          ? `<img class="news-thumb" src="https://www.google.com/s2/favicons?domain=${esc(a.domain)}&sz=64" alt="" onerror="this.style.visibility='hidden'">`
+          : `<span class="news-thumb"></span>`;
+        return `
         <a class="news-row" href="${esc(a.link)}" target="_blank" rel="noopener">
-          <span class="news-title">${esc(a.title)}</span>
-          <span class="news-meta">${esc(a.source || "")}${a.pubDate ? ` · ${relTime(a.pubDate)}` : ""}</span>
-        </a>`).join("");
+          ${thumb}
+          <span class="news-body">
+            <span class="news-title">${esc(a.title)}</span>
+            <span class="news-meta">${esc(a.source || "")}${a.pubDate ? ` · ${relTime(a.pubDate)}` : ""}</span>
+          </span>
+        </a>`;
+      }).join("");
       el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel">${rows}</div>`;
     }
     function relTime(pub) {
