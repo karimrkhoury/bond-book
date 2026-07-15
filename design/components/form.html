@@ -27,6 +27,9 @@
            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' fill='none' stroke='%23808f8b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
            background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; }
   input:focus, select:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
+  .issuer-field { display:flex; align-items:center; gap:10px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:0 12px; height:48px; }
+  .issuer-field input { border:none; background:none; height:auto; padding:0; flex:1; min-width:0; }
+  .issuer-field img { width:28px; height:28px; border-radius:50%; flex-shrink:0; }
   .field-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
   .editor-actions { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
   .primary-btn { background:var(--accent); color:var(--accent-contrast); border:none; border-radius:10px;

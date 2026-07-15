@@ -112,13 +112,21 @@
     color: var(--muted); margin: 0 4px 8px;
   }
   #list { display: flex; flex-direction: column; }
+  .swipe-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
+  .swipe-row:last-child { border-bottom: none; }
+  .swipe-actions { position: absolute; inset: 0 0 0 auto; display: flex; }
+  .swipe-btn { border: none; color: #fff; font: inherit; font-size: 14px; font-weight: 600; width: 76px; cursor: pointer; }
+  .swipe-edit { background: var(--accent); }
+  .swipe-del { background: var(--loss); }
   .holding {
+    position: relative; z-index: 1;
     width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
-    background: none; border: none; border-bottom: 1px solid var(--line);
+    background: var(--bg); border: none;
     padding: 14px 4px;
     display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    transition: transform .22s cubic-bezier(.2, .8, .2, 1);
+    touch-action: pan-y;
   }
-  .holding:last-child { border-bottom: none; }
   .holding:active { background: var(--chip); }
   .h-avatar {
     flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
@@ -172,6 +180,12 @@
     padding-right: 36px;
   }
   input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .issuer-field { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; height: 48px; }
+  .issuer-field:focus-within { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .issuer-field input { border: none; background: none; height: auto; padding: 0; flex: 1; min-width: 0; }
+  .issuer-field input:focus { outline: none; }
+  #issuer-preview { flex-shrink: 0; display: flex; }
+  #issuer-preview .h-avatar { width: 28px; height: 28px; font-size: 15px; }
   .primary-btn {
     background: var(--accent); color: var(--accent-contrast);
     border: none; border-radius: 10px;
@@ -292,10 +306,10 @@
     <form id="editor-form">
     <p class="form-section">Bond</p>
     <label>Issuer
-      <select id="f-issuer"></select>
-    </label>
-    <label id="custom-name-label" hidden>Issuer name
-      <input id="f-name" type="text" placeholder="e.g. Acme Corp" autocomplete="off" autocapitalize="words">
+      <div class="issuer-field">
+        <span id="issuer-preview"></span>
+        <input id="f-name" type="text" required placeholder="Country or company, e.g. Jordan" autocomplete="off" autocapitalize="words">
+      </div>
     </label>
     <div class="field-row">
       <label>Maturity
@@ -349,6 +363,7 @@
 </dialog>
 
 <script src="config.js"></script>
+<script src="countries.js"></script>
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -427,46 +442,73 @@
     }
     const staleDays = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 0;
 
-    // Issuer directory: sovereigns get a country code (circle-flags SVG),
-    // corporates a favicon domain.
-    const ISSUERS = [
-      { name: "Abu Dhabi", cc: "ae" }, { name: "Bahrain", cc: "bh" },
-      { name: "Brazil", cc: "br" }, { name: "Colombia", cc: "co" },
-      { name: "Dubai", cc: "ae" }, { name: "Egypt", cc: "eg" },
-      { name: "Indonesia", cc: "id" }, { name: "Jordan", cc: "jo" },
-      { name: "Kuwait", cc: "kw" }, { name: "Lebanon", cc: "lb" },
-      { name: "Mexico", cc: "mx" }, { name: "Morocco", cc: "ma" },
-      { name: "Nigeria", cc: "ng" }, { name: "Oman", cc: "om" },
-      { name: "Pakistan", cc: "pk" }, { name: "Qatar", cc: "qa" },
-      { name: "Ras Al Khaimah", cc: "ae" }, { name: "Saudi Arabia", cc: "sa" },
-      { name: "Sharjah", cc: "ae" }, { name: "South Africa", cc: "za" },
-      { name: "Turkey", cc: "tr" }, { name: "United Kingdom", cc: "gb" },
-      { name: "United States", cc: "us" },
-      { name: "Aramco", domain: "aramco.com" },
-      { name: "Ecopetrol", domain: "ecopetrol.com.co" },
-      { name: "Pemex", domain: "pemex.com" },
-    ];
-    const issuerKey = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
-    const issuerInfo = (name) => {
-      const k = issuerKey(name);
-      return ISSUERS.find((i) => k === issuerKey(i.name) || k.startsWith(issuerKey(i.name))) || null;
-    };
-    function avatar(name) {
-      const info = issuerInfo(name);
-      if (info?.cc) return `<span class="h-avatar"><img class="flag" src="https://hatscripts.github.io/circle-flags/flags/${info.cc}.svg" alt="" loading="lazy"></span>`;
-      if (info?.domain) return `<span class="h-avatar"><img class="logo" src="https://www.google.com/s2/favicons?domain=${info.domain}&sz=64" alt="" loading="lazy"></span>`;
-      return `<span class="h-avatar mono">${esc(String(name || "?").trim().charAt(0).toUpperCase())}</span>`;
-    }
+    // Issuer resolver: type anything → best-effort flag (country) / logo (company) / monogram.
+    const norm = (s) => String(s || "").toLowerCase().normalize("NFD")
+      .replace(/[̀-ͯ]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
 
-    $("f-issuer").innerHTML =
-      ISSUERS.map((i) => `<option value="${esc(i.name)}">${esc(i.name)}</option>`).join("") +
-      `<option value="__other">Other…</option>`;
+    // Build a name→country-code index from the platform's own country names + curated aliases.
+    const NAME_TO_CC = new Map();
+    const CC_NAMES = []; // { q, cc } sorted longest-first for whole-word matching
+    try {
+      const dn = new Intl.DisplayNames(["en"], { type: "region" });
+      for (const cc of (window.ISO_CODES || [])) {
+        let n; try { n = dn.of(cc.toUpperCase()); } catch { continue; }
+        if (!n || n.toLowerCase() === cc) continue;
+        const q = norm(n);
+        if (q && !NAME_TO_CC.has(q)) { NAME_TO_CC.set(q, cc); CC_NAMES.push({ q, cc }); }
+      }
+    } catch { /* Intl.DisplayNames unsupported — aliases still cover the common cases */ }
+    for (const [cc, list] of Object.entries(window.COUNTRY_ALIASES || {})) {
+      for (const a of list) {
+        const q = norm(a);
+        if (q && !NAME_TO_CC.has(q)) { NAME_TO_CC.set(q, cc); CC_NAMES.push({ q, cc }); }
+      }
+    }
+    CC_NAMES.sort((a, b) => b.q.length - a.q.length);
+
+    // Domains whose site isn't simply name.com; everything else falls back to a name.com guess.
+    const CORP_DOMAINS = {
+      aramco: "aramco.com", saudiaramco: "aramco.com", ecopetrol: "ecopetrol.com.co",
+      pemex: "pemex.com", petrobras: "petrobras.com.br", qatarenergy: "qatarenergy.qa",
+      adnoc: "adnoc.ae", dewa: "dewa.gov.ae", taqa: "taqa.com", dpworld: "dpworld.com",
+    };
+
+    function matchCountry(name) {
+      const q = norm(name);
+      if (!q) return null;
+      if (NAME_TO_CC.has(q)) return NAME_TO_CC.get(q);
+      const hay = " " + q + " ";
+      for (const { q: cand, cc } of CC_NAMES) {
+        if (hay.includes(" " + cand + " ")) return cc; // whole-word, multi-word ok
+      }
+      return null;
+    }
+    function corpDomain(name) {
+      const key = norm(name).replace(/ /g, "");
+      return CORP_DOMAINS[key] || (key ? key + ".com" : "");
+    }
+    function avatar(name) {
+      const mono = esc(String(name || "").trim().charAt(0).toUpperCase());
+      const cc = matchCountry(name);
+      if (cc) return `<span class="h-avatar" data-mono="${mono}"><img class="flag" src="flags/${cc}.svg" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
+      const domain = corpDomain(name);
+      if (domain) return `<span class="h-avatar" data-mono="${mono}"><img class="logo" src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="" loading="lazy" onerror="window.bbBadgeFallback(this)"></span>`;
+      return `<span class="h-avatar mono">${mono || "?"}</span>`;
+    }
+    window.bbBadgeFallback = function (img) {
+      const p = img.parentNode;
+      p.classList.add("mono");
+      p.textContent = p.getAttribute("data-mono") || "?";
+    };
+    function updateIssuerPreview() {
+      const v = $("f-name").value.trim();
+      $("issuer-preview").innerHTML = v ? avatar(v) : `<span class="h-avatar mono"></span>`;
+    }
+    $("f-name").addEventListener("input", updateIssuerPreview);
+
     $("f-mty-year").innerHTML =
       `<option value="">Year —</option>` +
       Array.from({ length: 46 }, (_, k) => 2025 + k).map((y) => `<option>${y}</option>`).join("");
-    $("f-issuer").addEventListener("change", () => {
-      $("custom-name-label").hidden = $("f-issuer").value !== "__other";
-    });
     $("f-nominal").addEventListener("input", () => {
       const el = $("f-nominal");
       const raw = el.value.replace(/[^\d.]/g, "");
@@ -573,37 +615,108 @@
           ? `<span class="h-meta num">@ ${priceLabel}</span>`
           : `<span class="h-meta num ${pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(pnl, h.currency)}${cost > 0 ? ` (${signedPct(Number(h.clean_price) / cost - 1)})` : ""}</span>`;
         return `
-        <button class="holding" data-id="${esc(h.id)}">
-          ${avatar(h.name)}
-          <span class="h-left">
-            <span class="h-name">${esc(h.name)}${h.maturity_date ? ` <span class="h-mty">${maturityLabel(h.maturity_date)}</span>` : ""}</span>
-            <span class="h-sub num">${bits.join(" · ")}</span>
-          </span>
-          <span class="h-right">
-            <span class="h-value num">${money(marketOf(h), h.currency)}</span>
-            ${meta}
-          </span>
-        </button>`;
+        <div class="swipe-row" data-id="${esc(h.id)}">
+          <div class="swipe-actions">
+            <button class="swipe-btn swipe-edit" type="button" data-act="edit" data-id="${esc(h.id)}">Edit</button>
+            <button class="swipe-btn swipe-del" type="button" data-act="delete" data-id="${esc(h.id)}">Delete</button>
+          </div>
+          <div class="holding swipe-content" role="button" tabindex="0" data-id="${esc(h.id)}">
+            ${avatar(h.name)}
+            <span class="h-left">
+              <span class="h-name">${esc(h.name)}${h.maturity_date ? ` <span class="h-mty">${maturityLabel(h.maturity_date)}</span>` : ""}</span>
+              <span class="h-sub num">${bits.join(" · ")}</span>
+            </span>
+            <span class="h-right">
+              <span class="h-value num">${money(marketOf(h), h.currency)}</span>
+              ${meta}
+            </span>
+          </div>
+        </div>`;
       }).join("");
 
-      for (const btn of listEl.querySelectorAll(".holding")) {
-        btn.addEventListener("click", () => openEditor(holdings.find((h) => h.id === btn.dataset.id)));
+      for (const content of listEl.querySelectorAll(".swipe-content")) {
+        wireSwipe(content, SWIPE_W);
+        content.addEventListener("click", () => {
+          if (content.dataset.swiped) return;        // ignore the tap that ends a swipe
+          if (openContent) { closeSwipe(); return; } // first tap just closes an open row
+          openEditor(holdings.find((h) => h.id === content.dataset.id));
+        });
       }
+      for (const b of listEl.querySelectorAll(".swipe-btn")) {
+        b.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const h = holdings.find((x) => x.id === b.dataset.id);
+          closeSwipe();
+          if (b.dataset.act === "edit") { openEditor(h); return; }
+          if (!confirm(`Delete ${h.name}?`)) return;
+          const { error } = await sb.from("holdings").delete().eq("id", h.id);
+          if (error) { alert(error.message); return; }
+          await refresh();
+        });
+      }
+    }
+
+    // ---- swipe-to-reveal (edit / delete) ----
+    const SWIPE_W = 152; // two 76px action buttons
+    let openContent = null;
+    function closeSwipe() {
+      if (openContent) { openContent.style.transform = "translateX(0)"; openContent = null; }
+    }
+    function wireSwipe(content, width) {
+      let startX = 0, startY = 0, cur = 0, base = 0, dragging = false, decided = false, horiz = false;
+      content.addEventListener("touchstart", (e) => {
+        if (openContent && openContent !== content) closeSwipe();
+        base = openContent === content ? -width : 0;
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        cur = base; dragging = true; decided = false; horiz = false;
+        content.style.transition = "none";
+      }, { passive: true });
+      content.addEventListener("touchmove", (e) => {
+        if (!dragging) return;
+        const mx = e.touches[0].clientX - startX, my = e.touches[0].clientY - startY;
+        if (!decided && (Math.abs(mx) > 6 || Math.abs(my) > 6)) { decided = true; horiz = Math.abs(mx) > Math.abs(my); }
+        if (!decided || !horiz) return;
+        e.preventDefault();
+        cur = Math.max(-width - 16, Math.min(0, base + mx));
+        content.style.transform = `translateX(${cur}px)`;
+      }, { passive: false });
+      const end = () => {
+        if (!dragging) return;
+        dragging = false;
+        content.style.transition = "";
+        if (horiz) { content.dataset.swiped = "1"; setTimeout(() => delete content.dataset.swiped, 80); }
+        if (cur < -width / 2) { content.style.transform = `translateX(${-width}px)`; openContent = content; }
+        else { content.style.transform = "translateX(0)"; if (openContent === content) openContent = null; }
+      };
+      content.addEventListener("touchend", end);
+      content.addEventListener("touchcancel", end);
     }
 
     // ---- editor ----
     const editor = $("editor");
 
+    // Lock the page behind the sheet so iOS can't scroll-chain the background.
+    let scrollLockY = 0;
+    function lockScroll() {
+      scrollLockY = window.scrollY;
+      const b = document.body.style;
+      b.position = "fixed"; b.top = `-${scrollLockY}px`; b.left = "0"; b.right = "0"; b.width = "100%";
+    }
+    function unlockScroll() {
+      const b = document.body.style;
+      b.position = ""; b.top = ""; b.left = ""; b.right = ""; b.width = "";
+      window.scrollTo(0, scrollLockY);
+    }
+    editor.addEventListener("close", unlockScroll);
+
     function openEditor(h) {
+      closeSwipe();
       editingId = h ? h.id : null;
       $("editor-title").textContent = h ? "Edit bond" : "Add bond";
       $("editor-delete").hidden = !h;
       $("editor-msg").textContent = "";
-      const known = h ? ISSUERS.some((i) => i.name === h.name) : false;
-      if (h) $("f-issuer").value = known ? h.name : "__other";
-      else $("f-issuer").selectedIndex = 0;
-      $("custom-name-label").hidden = $("f-issuer").value !== "__other";
-      $("f-name").value = h && !known ? h.name : "";
+      $("f-name").value = h ? h.name : "";
+      updateIssuerPreview();
       $("f-mty-month").value = h?.maturity_date ? h.maturity_date.slice(5, 7) : "";
       $("f-mty-year").value = h?.maturity_date ? h.maturity_date.slice(0, 4) : "";
       $("f-nominal").value = h ? nominalOf(h).toLocaleString("en-US") : "";
@@ -611,6 +724,7 @@
       $("f-cost").value = h?.cost_price ?? "";
       $("f-price").value = h?.clean_price ?? "";
       $("f-isin").value = h?.isin || "";
+      lockScroll();
       editor.showModal();
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     }
@@ -625,7 +739,7 @@
     $("editor-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const original = editingId ? holdings.find((h) => h.id === editingId) : null;
-      const name = $("f-issuer").value === "__other" ? $("f-name").value.trim() : $("f-issuer").value;
+      const name = $("f-name").value.trim();
       const nominal = Number($("f-nominal").value.replace(/,/g, ""));
       const year = $("f-mty-year").value;
       const month = $("f-mty-month").value;
