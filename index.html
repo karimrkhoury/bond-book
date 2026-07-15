@@ -54,9 +54,11 @@
   }
 
   * { box-sizing: border-box; }
-  html { height: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  html { height: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scrollbar-width: none; -ms-overflow-style: none; }
+  ::-webkit-scrollbar { display: none; }
   body {
     margin: 0;
+    overflow-x: hidden;
     min-height: 100%;
     background: var(--bg);
     color: var(--ink);
@@ -192,6 +194,18 @@
   .add-pill:active { transform: scale(0.97); }
   #holdings-page header h1, #news-page header h1 { flex: 1; text-align: center; }
   .header-spacer { width: 52px; flex-shrink: 0; }
+
+  /* Slide-in sub-pages (iOS-style push) */
+  #holdings-page, #news-page {
+    position: fixed; inset: 0; z-index: 20;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #holdings-page.page-open, #news-page.page-open { transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) { #holdings-page, #news-page { transition: none; } }
   .news-thumb {
     flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px;
     background: var(--chip); object-fit: contain; padding: 5px;
@@ -324,10 +338,7 @@
 <section id="app" hidden>
   <header>
     <h1>Bond Book</h1>
-    <div class="header-actions">
-      <button id="add-btn" class="add-pill" type="button">+ Add</button>
-      <button id="signout" class="ghost-btn" type="button">Sign out</button>
-    </div>
+    <button id="signout" class="ghost-btn" type="button">Sign out</button>
   </header>
   <main>
     <div id="hero"></div>
@@ -452,8 +463,10 @@
 
   function show(name) {
     for (const key of Object.keys(views)) views[key].hidden = key !== name;
-    document.getElementById("holdings-page").hidden = true;
-    document.getElementById("news-page").hidden = true;
+    for (const id of ["holdings-page", "news-page"]) {
+      const p = document.getElementById(id);
+      p.hidden = true; p.classList.remove("page-open");
+    }
   }
 
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) {
@@ -710,18 +723,23 @@
     }
 
     let route = "home";
-    function hidePages() { $("holdings-page").hidden = true; $("news-page").hidden = true; }
-    function gotoHoldings() {
-      route = "holdings"; $("app").hidden = true; hidePages();
-      $("holdings-page").hidden = false; renderHoldingsFull(); window.scrollTo(0, 0);
+    function openPage(el) {
+      el.hidden = false;
+      void el.offsetWidth;              // commit the off-screen state so the slide animates
+      el.classList.add("page-open");
+      el.scrollTop = 0;
     }
-    function gotoNews() {
-      route = "news"; $("app").hidden = true; hidePages();
-      $("news-page").hidden = false; renderNewsFull(); window.scrollTo(0, 0);
+    function closePage(el) {
+      if (el.hidden) return;
+      el.classList.remove("page-open");
+      let done = false;
+      const finish = () => { if (done) return; done = true; el.hidden = true; el.removeEventListener("transitionend", finish); };
+      el.addEventListener("transitionend", finish);
+      setTimeout(finish, 340);          // fallback if transitionend doesn't fire (reduced motion)
     }
-    function gotoHome() {
-      route = "home"; hidePages(); $("app").hidden = false; window.scrollTo(0, 0);
-    }
+    function gotoHoldings() { route = "holdings"; renderHoldingsFull(); openPage($("holdings-page")); }
+    function gotoNews() { route = "news"; renderNewsFull(); openPage($("news-page")); }
+    function gotoHome() { route = "home"; closePage($("holdings-page")); closePage($("news-page")); }
     $("hp-back").addEventListener("click", gotoHome);
     $("hp-add").addEventListener("click", () => openEditor(null));
     $("np-back").addEventListener("click", gotoHome);
@@ -912,9 +930,9 @@
     function renderHoldingsSection() {
       const el = $("holdings-wrap");
       const sorted = byValueDesc();
-      const link = sorted.length > 3
+      const link = sorted.length > 5
         ? `<button class="view-all" id="holdings-viewall" type="button">View all ${sorted.length}</button>` : "";
-      el.innerHTML = `<div class="feed-head"><p class="section-label">Holdings</p>${link}</div><div class="panel">${holdingRowsHTML(sorted.slice(0, 3))}</div>`;
+      el.innerHTML = `<div class="feed-head"><p class="section-label">Holdings</p>${link}</div><div class="panel">${holdingRowsHTML(sorted.slice(0, 5))}</div>`;
       const va = $("holdings-viewall");
       if (va) va.addEventListener("click", gotoHoldings);
       wireHoldingRows(el);
@@ -1085,7 +1103,6 @@
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     }
 
-    $("add-btn").addEventListener("click", () => openEditor(null));
     $("editor-cancel").addEventListener("click", () => editor.close());
     editor.addEventListener("click", (e) => {
       const r = editor.getBoundingClientRect();
