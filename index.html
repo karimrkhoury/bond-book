@@ -96,8 +96,21 @@
     padding: 16px;
   }
 
-  /* Portfolio summary */
-  #totals { display: flex; flex-direction: column; gap: 24px; margin: 12px 4px 28px; }
+  /* Portfolio summary / hero */
+  #hero { margin: 12px 4px 26px; }
+  .hero-other { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .chart { margin-top: 16px; }
+  .chart svg { display: block; width: 100%; }
+  .chart-cap { font-size: 12px; font-weight: 600; margin-top: 5px; }
+  .feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 4px 8px; }
+  .feed-head .section-label { margin: 0; }
+  .view-all { background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 2px 0; }
+  .news-row { display: flex; flex-direction: column; gap: 3px; padding: 11px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .news-row:last-child { border-bottom: none; }
+  .news-row:active { opacity: 0.6; }
+  .news-title { font-weight: 600; font-size: 15px; line-height: 1.32; }
+  .news-meta { font-size: 12px; color: var(--muted); }
+  .news-empty { color: var(--muted); text-align: center; padding: 16px; margin: 0; }
   .sum-label {
     font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--muted); margin-bottom: 6px;
@@ -308,11 +321,10 @@
     <button id="signout" class="ghost-btn" type="button">Sign out</button>
   </header>
   <main>
-    <div id="totals"></div>
-    <div id="ladder"></div>
-    <div id="coupons"></div>
-    <p class="section-label" id="list-label" hidden>Holdings</p>
-    <div id="list"><p class="empty">Loading…</p></div>
+    <div id="hero"></div>
+    <section id="maturing" class="feed"></section>
+    <section id="holdings-wrap" class="feed"><p class="empty">Loading…</p></section>
+    <section id="news" class="feed"></section>
   </main>
   <button id="add-btn" type="button">+ Add bond</button>
 </section>
@@ -442,6 +454,12 @@
     let holdings = [];
     let editingId = null;
     let signUpMode = false;
+    let userId = null;
+    let snapshots = [];
+    let showAllMaturing = false;
+    let showAllHoldings = false;
+    let newsCache = null;
+    let newsKey = "";
 
     $("auth-email").value = localStorage.getItem("bb.lastEmail") || "";
 
@@ -606,6 +624,7 @@
 
     // ---- auth ----
     sb.auth.onAuthStateChange((_event, session) => {
+      userId = session?.user?.id || null;
       if (session) { show("app"); refresh(); }
       else { show("auth"); }
     });
@@ -650,26 +669,16 @@
     async function refresh() {
       const { data, error } = await sb.from("holdings").select("*").order("name").order("maturity_date");
       if (error) {
-        $("list").innerHTML = `<p class="empty">Could not load holdings: ${esc(error.message)}</p>`;
+        $("holdings-wrap").innerHTML = `<p class="empty">Could not load holdings: ${esc(error.message)}</p>`;
         return;
       }
       holdings = data;
+      await syncSnapshots();
       render();
+      loadNews();
     }
 
-    function render() {
-      const totalsEl = $("totals");
-      const listEl = $("list");
-
-      if (!holdings.length) {
-        totalsEl.innerHTML = "";
-        $("ladder").innerHTML = "";
-        $("coupons").innerHTML = "";
-        $("list-label").hidden = true;
-        listEl.innerHTML = `<p class="empty">No bonds yet.<br>Tap “+ Add bond” to enter your first holding.</p>`;
-        return;
-      }
-
+    function totalsByCurrency() {
       const byCcy = new Map();
       for (const h of holdings) {
         const t = byCcy.get(h.currency) || { nominal: 0, market: 0, pnl: 0, basis: 0, hasCost: false, income: 0 };
@@ -680,28 +689,125 @@
         if (pnl != null) { t.pnl += pnl; t.basis += costBasisOf(h); t.hasCost = true; }
         byCcy.set(h.currency, t);
       }
-      totalsEl.innerHTML = [...byCcy.entries()].map(([ccy, t]) => {
-        const pnlLine = t.hasCost
-          ? `<div class="sum-pnl num ${t.pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(t.pnl, ccy)}${t.basis > 0 ? ` (${signedPct(t.pnl / t.basis)})` : ""} unrealized</div>`
-          : "";
-        const incomeLine = t.income > 0
-          ? `<div class="sum-income num">${money0(t.income, ccy)}/yr income · ${money0(t.income / 12, ccy)}/mo · ${(t.income / t.market * 100).toFixed(2)}% yield</div>`
-          : "";
-        return `
-        <div>
-          <div class="sum-label">${esc(ccy)} portfolio</div>
-          <div class="sum-value num">${money0(t.market, ccy)}</div>
-          <div class="sum-sub num">${money0(t.nominal, ccy)} nominal</div>
-          ${pnlLine}
-          ${incomeLine}
+      return byCcy;
+    }
+    const primaryCurrency = () => {
+      const c = {};
+      for (const h of holdings) c[h.currency] = (c[h.currency] || 0) + marketOf(h);
+      return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
+    };
+
+    // Record today's value, then reload the history that feeds the chart.
+    async function syncSnapshots() {
+      if (!holdings.length || !userId) { snapshots = []; return; }
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = [...totalsByCurrency()].map(([ccy, t]) => ({
+        user_id: userId, day: today, currency: ccy, total: Math.round(t.market * 100) / 100,
+      }));
+      try { await sb.from("snapshots").upsert(rows, { onConflict: "user_id,day,currency" }); } catch { /* non-fatal */ }
+      const { data } = await sb.from("snapshots").select("day,currency,total").order("day");
+      snapshots = data || [];
+    }
+
+    function render() {
+      if (!holdings.length) {
+        $("hero").innerHTML = "";
+        $("maturing").innerHTML = "";
+        $("news").innerHTML = "";
+        $("holdings-wrap").innerHTML = `<p class="empty">No bonds yet.<br>Tap “+ Add bond” to enter your first holding.</p>`;
+        return;
+      }
+      renderHero();
+      renderMaturing();
+      renderHoldingsSection();
+    }
+
+    // Hero: big number + P&L + income + historical value chart.
+    function renderHero() {
+      const byCcy = totalsByCurrency();
+      const primary = primaryCurrency();
+      const t = byCcy.get(primary);
+      const pnlLine = t.hasCost
+        ? `<div class="sum-pnl num ${t.pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(t.pnl, primary)}${t.basis > 0 ? ` (${signedPct(t.pnl / t.basis)})` : ""} unrealized</div>`
+        : "";
+      const incomeLine = t.income > 0
+        ? `<div class="sum-income num">${money0(t.income, primary)}/yr · ${money0(t.income / 12, primary)}/mo · ${(t.income / t.market * 100).toFixed(2)}% yield</div>`
+        : "";
+      const others = [...byCcy.entries()].filter(([c]) => c !== primary)
+        .map(([c, tt]) => `<div class="hero-other num">${esc(c)} ${money0(tt.market, c)}</div>`).join("");
+      $("hero").innerHTML = `
+        <div class="sum-label">${esc(primary)} portfolio</div>
+        <div class="sum-value num">${money0(t.market, primary)}</div>
+        <div class="sum-sub num">${money0(t.nominal, primary)} nominal</div>
+        ${pnlLine}${incomeLine}${others}
+        ${buildChart(primary)}`;
+    }
+
+    // Area chart of the recorded value history for one currency.
+    function buildChart(ccy) {
+      const pts = snapshots.filter((s) => s.currency === ccy).map((s) => ({ day: s.day, v: Number(s.total) }));
+      if (pts.length < 2) return "";
+      const W = 320, H = 96, pad = 4;
+      const vals = pts.map((p) => p.v);
+      const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+      const x = (i) => pad + i * (W - 2 * pad) / (pts.length - 1);
+      const y = (v) => H - pad - (v - min) / span * (H - 2 * pad);
+      const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+      const area = `${line} L${x(pts.length - 1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
+      const first = pts[0].v, last = pts[pts.length - 1].v, chg = first ? last / first - 1 : 0;
+      const since = new Date(pts[0].day + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      return `
+        <div class="chart">
+          <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="96" aria-hidden="true">
+            <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--accent)" stop-opacity="0.28"/>
+              <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
+            </linearGradient></defs>
+            <path d="${area}" fill="url(#cg)"/>
+            <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+            <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3" fill="var(--accent)"/>
+          </svg>
+          <div class="chart-cap num ${chg < 0 ? "pnl-neg" : "pnl-pos"}">${signedPct(chg)} since ${since}</div>
         </div>`;
+    }
+
+    // Maturing soon: top 3 (soonest), progress bars, view all.
+    function renderMaturing() {
+      const el = $("maturing");
+      const dated = holdings.filter((h) => h.maturity_date)
+        .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1));
+      if (!dated.length) { el.innerHTML = ""; return; }
+      const shown = showAllMaturing ? dated : dated.slice(0, 3);
+      const rows = shown.map((h) => {
+        const p = maturityProgress(h);
+        const timeLabel = p.yrsLeft <= 0 ? "matured"
+          : p.yrsLeft < 1 ? `${Math.max(1, Math.round(p.yrsLeft * 12))} mo left`
+          : `${p.yrsLeft.toFixed(1)} yrs left`;
+        const pct = p.pct != null ? p.pct : Math.min(1, Math.max(0.02, (30 - Math.max(0, p.yrsLeft)) / 30));
+        const pctLabel = p.pct != null ? `${Math.round(p.pct * 100)}% · ` : "";
+        return `
+          <div class="mat-row">
+            ${avatar(h.name)}
+            <span class="mat-left">
+              <span class="mat-name">${esc(h.name)}</span>
+              <span class="mat-track"><span class="mat-fill" style="width:${Math.max(3, Math.round(pct * 100))}%"></span></span>
+            </span>
+            <span class="mat-meta">
+              <span class="mat-when">${maturityLabel(h.maturity_date)}</span>
+              <span class="mat-time">${pctLabel}${timeLabel}</span>
+            </span>
+          </div>`;
       }).join("");
+      el.innerHTML = `${sectionHead("Maturing soon", dated.length, showAllMaturing, "mat")}<div class="panel">${rows}</div>`;
+      wireViewAll(el, "mat");
+    }
 
-      renderMaturity();
-      renderCoupons();
-
-      $("list-label").hidden = false;
-      listEl.innerHTML = holdings.map((h) => {
+    // Holdings: top 3 by market value, view all, swipe to edit / delete.
+    function renderHoldingsSection() {
+      const el = $("holdings-wrap");
+      const sorted = holdings.slice().sort((a, b) => marketOf(b) - marketOf(a));
+      const shown = showAllHoldings ? sorted : sorted.slice(0, 3);
+      const rows = shown.map((h) => {
         const bits = [money0(nominalOf(h), h.currency) + " nominal"];
         if (hasCoupon(h)) bits.push(`${Number(h.coupon_rate)}% coupon`);
         const stale = staleDays(h.priced_at);
@@ -713,34 +819,35 @@
           ? `<span class="h-meta num">@ ${priceLabel}</span>`
           : `<span class="h-meta num ${pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(pnl, h.currency)}${cost > 0 ? ` (${signedPct(Number(h.clean_price) / cost - 1)})` : ""}</span>`;
         return `
-        <div class="swipe-row" data-id="${esc(h.id)}">
-          <div class="swipe-actions">
-            <button class="swipe-btn swipe-edit" type="button" data-act="edit" data-id="${esc(h.id)}">Edit</button>
-            <button class="swipe-btn swipe-del" type="button" data-act="delete" data-id="${esc(h.id)}">Delete</button>
-          </div>
-          <div class="holding swipe-content" role="button" tabindex="0" data-id="${esc(h.id)}">
-            ${avatar(h.name)}
-            <span class="h-left">
-              <span class="h-name">${esc(h.name)}${h.maturity_date ? ` <span class="h-mty">${maturityLabel(h.maturity_date)}</span>` : ""}</span>
-              <span class="h-sub num">${bits.join(" · ")}</span>
-            </span>
-            <span class="h-right">
-              <span class="h-value num">${money(marketOf(h), h.currency)}</span>
-              ${meta}
-            </span>
-          </div>
-        </div>`;
+          <div class="swipe-row" data-id="${esc(h.id)}">
+            <div class="swipe-actions">
+              <button class="swipe-btn swipe-edit" type="button" data-act="edit" data-id="${esc(h.id)}">Edit</button>
+              <button class="swipe-btn swipe-del" type="button" data-act="delete" data-id="${esc(h.id)}">Delete</button>
+            </div>
+            <div class="holding swipe-content" role="button" tabindex="0" data-id="${esc(h.id)}">
+              ${avatar(h.name)}
+              <span class="h-left">
+                <span class="h-name">${esc(h.name)}${h.maturity_date ? ` <span class="h-mty">${maturityLabel(h.maturity_date)}</span>` : ""}</span>
+                <span class="h-sub num">${bits.join(" · ")}</span>
+              </span>
+              <span class="h-right">
+                <span class="h-value num">${money(marketOf(h), h.currency)}</span>
+                ${meta}
+              </span>
+            </div>
+          </div>`;
       }).join("");
-
-      for (const content of listEl.querySelectorAll(".swipe-content")) {
+      el.innerHTML = `${sectionHead("Holdings", sorted.length, showAllHoldings, "hold")}<div id="list">${rows}</div>`;
+      wireViewAll(el, "hold");
+      for (const content of el.querySelectorAll(".swipe-content")) {
         wireSwipe(content, SWIPE_W);
         content.addEventListener("click", () => {
-          if (content.dataset.swiped) return;        // ignore the tap that ends a swipe
-          if (openContent) { closeSwipe(); return; } // first tap just closes an open row
+          if (content.dataset.swiped) return;
+          if (openContent) { closeSwipe(); return; }
           openEditor(holdings.find((h) => h.id === content.dataset.id));
         });
       }
-      for (const b of listEl.querySelectorAll(".swipe-btn")) {
+      for (const b of el.querySelectorAll(".swipe-btn")) {
         b.addEventListener("click", async (e) => {
           e.stopPropagation();
           const h = holdings.find((x) => x.id === b.dataset.id);
@@ -754,61 +861,61 @@
       }
     }
 
-    // Time to maturity — per bond, a progress bar that fills as the bond ages toward maturity.
-    function renderMaturity() {
-      const el = $("ladder");
-      const dated = holdings.filter((h) => h.maturity_date);
-      if (!dated.length) { el.innerHTML = ""; return; }
-      const rows = dated
-        .slice()
-        .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1))
-        .map((h) => {
-          const p = maturityProgress(h);
-          const matured = p.yrsLeft <= 0;
-          const timeLabel = matured
-            ? "matured"
-            : p.yrsLeft < 1
-              ? `${Math.max(1, Math.round(p.yrsLeft * 12))} mo left`
-              : `${p.yrsLeft.toFixed(1)} yrs left`;
-          const pctLabel = p.pct == null ? "" : `${Math.round(p.pct * 100)}% · `;
-          const track = p.pct == null
-            ? ""
-            : `<span class="mat-track"><span class="mat-fill" style="width:${Math.max(3, Math.round(p.pct * 100))}%"></span></span>`;
-          return `
-          <div class="mat-row">
-            ${avatar(h.name)}
-            <span class="mat-left">
-              <span class="mat-name">${esc(h.name)}</span>
-              ${track}
-            </span>
-            <span class="mat-meta">
-              <span class="mat-when">${maturityLabel(h.maturity_date)}</span>
-              <span class="mat-time">${pctLabel}${timeLabel}</span>
-            </span>
-          </div>`;
-        }).join("");
-      el.innerHTML = `<p class="section-label">Time to maturity</p><div class="panel">${rows}</div>`;
+    function sectionHead(title, total, expanded, key) {
+      const link = total > 3
+        ? `<button class="view-all" type="button" data-toggle="${key}">${expanded ? "Show less" : `View all ${total}`}</button>`
+        : "";
+      return `<div class="feed-head"><p class="section-label">${title}</p>${link}</div>`;
+    }
+    function wireViewAll(scope, key) {
+      const btn = scope.querySelector(`[data-toggle="${key}"]`);
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        if (key === "mat") showAllMaturing = !showAllMaturing;
+        else showAllHoldings = !showAllHoldings;
+        render();
+      });
     }
 
-    // Upcoming coupons — the next few payments across the book.
-    function renderCoupons() {
-      const el = $("coupons");
-      const upcoming = holdings
-        .map((h) => ({ h, c: nextCoupon(h) }))
-        .filter((x) => x.c)
-        .sort((a, b) => a.c.idx - b.c.idx)
-        .slice(0, 6);
-      if (!upcoming.length) { el.innerHTML = ""; return; }
-      const rows = upcoming.map(({ h, c }) => `
-        <div class="coupon-row">
-          ${avatar(h.name)}
-          <span class="coupon-left">
-            <span class="coupon-name">${esc(h.name)}</span>
-            <span class="coupon-when">${monthYearLabel(c.year, c.month)}</span>
-          </span>
-          <span class="coupon-amt num">${money0(c.amount, h.currency)}</span>
-        </div>`).join("");
-      el.innerHTML = `<p class="section-label">Upcoming coupons</p><div class="panel">${rows}</div>`;
+    // Portfolio news via the Supabase edge function (fetches Google News server-side).
+    async function loadNews() {
+      const el = $("news");
+      const issuers = [...new Set(holdings.map((h) => h.name))].slice(0, 12);
+      if (!issuers.length) { el.innerHTML = ""; return; }
+      const key = issuers.join(",");
+      if (key === newsKey && newsCache) { renderNews(); return; }
+      newsKey = key; newsCache = null;
+      el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel"><p class="news-empty">Loading…</p></div>`;
+      try {
+        const r = await fetch(`${cfg.supabaseUrl}/functions/v1/news?q=${encodeURIComponent(key)}`,
+          { headers: { apikey: cfg.supabaseAnonKey } });
+        const d = await r.json();
+        newsCache = Array.isArray(d.items) ? d.items : [];
+      } catch { newsCache = []; }
+      renderNews();
+    }
+    function renderNews() {
+      const el = $("news");
+      if (!newsCache || !newsCache.length) {
+        el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel"><p class="news-empty">No recent news found for your issuers.</p></div>`;
+        return;
+      }
+      const rows = newsCache.slice(0, 8).map((a) => `
+        <a class="news-row" href="${esc(a.link)}" target="_blank" rel="noopener">
+          <span class="news-title">${esc(a.title)}</span>
+          <span class="news-meta">${esc(a.source || "")}${a.pubDate ? ` · ${relTime(a.pubDate)}` : ""}</span>
+        </a>`).join("");
+      el.innerHTML = `<p class="section-label">Portfolio news</p><div class="panel">${rows}</div>`;
+    }
+    function relTime(pub) {
+      const t = new Date(pub).getTime();
+      if (isNaN(t)) return "";
+      const d = Math.floor((Date.now() - t) / 86400000);
+      if (d <= 0) return "today";
+      if (d === 1) return "yesterday";
+      if (d < 7) return `${d}d ago`;
+      if (d < 30) return `${Math.floor(d / 7)}w ago`;
+      return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
     }
 
 

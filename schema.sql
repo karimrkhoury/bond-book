@@ -25,3 +25,19 @@ create policy "Users manage their own holdings"
   on public.holdings for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- Daily portfolio value, one row per user/day/currency. Written client-side on load;
+-- feeds the historical value chart on the landing page.
+create table public.snapshots (
+  user_id  uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  day      date not null default current_date,
+  currency text not null default 'USD',
+  total    numeric not null,
+  primary key (user_id, day, currency)
+);
+alter table public.snapshots enable row level security;
+create policy "own snapshots" on public.snapshots for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Portfolio news is a Supabase Edge Function (supabase/functions/news) that fetches
+-- Google News server-side, filtered to the user's issuers. Deploy: supabase functions deploy news --no-verify-jwt
