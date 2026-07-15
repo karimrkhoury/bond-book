@@ -9,8 +9,10 @@ create table public.holdings (
   maturity_date date,
   face_value    numeric not null check (face_value >= 0),        -- par per unit
   quantity      numeric not null check (quantity >= 0),
-  cost_price    numeric not null check (cost_price >= 0),        -- purchase price, % of par
+  cost_price    numeric check (cost_price >= 0),                 -- purchase price, % of par (null = unknown, no P&L)
   clean_price   numeric not null check (clean_price >= 0),       -- current price, % of par
+  coupon_rate   numeric check (coupon_rate >= 0),                -- annual coupon, % of par (null/0 = no income)
+  coupon_freq   int not null default 2 check (coupon_freq in (1,2,4,12)), -- payments per year
   priced_at     timestamptz not null default now(),              -- when clean_price was last set
   created_at    timestamptz not null default now()
 );

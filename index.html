@@ -105,6 +105,21 @@
   .sum-value { font-size: clamp(24px, 8.5vw, 34px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; }
   .sum-sub { font-size: 14px; color: var(--muted); margin-top: 5px; }
   .sum-pnl { font-size: 14px; font-weight: 600; margin-top: 3px; }
+  .sum-income { font-size: 14px; color: var(--accent); font-weight: 600; margin-top: 3px; }
+
+  /* Maturity ladder + coupons */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 6px 14px; margin: 0 0 24px; }
+  .ladder-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; }
+  .ladder-year { width: 42px; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .ladder-track { flex: 1; height: 20px; background: var(--chip); border-radius: 6px; overflow: hidden; }
+  .ladder-fill { display: block; height: 100%; background: var(--accent); border-radius: 6px; }
+  .ladder-amt { flex-shrink: 0; font-size: 13px; font-weight: 600; text-align: right; }
+  .coupon-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .coupon-row:last-child { border-bottom: none; }
+  .coupon-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .coupon-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .coupon-when { font-size: 13px; color: var(--muted); }
+  .coupon-amt { flex-shrink: 0; font-weight: 600; color: var(--accent); }
 
   /* Holdings list */
   .section-label {
@@ -290,6 +305,8 @@
   </header>
   <main>
     <div id="totals"></div>
+    <div id="ladder"></div>
+    <div id="coupons"></div>
     <p class="section-label" id="list-label" hidden>Holdings</p>
     <div id="list"><p class="empty">Loading…</p></div>
   </main>
@@ -347,6 +364,20 @@
       </label>
       <label>Current
         <input id="f-price" type="number" step="any" min="0" inputmode="decimal" required placeholder="98.75">
+      </label>
+    </div>
+    <p class="form-section">Income · optional</p>
+    <div class="field-row">
+      <label>Coupon rate %
+        <input id="f-coupon" type="number" step="any" min="0" inputmode="decimal" placeholder="e.g. 5.5">
+      </label>
+      <label>Pays
+        <select id="f-freq">
+          <option value="2">Semi-annually</option>
+          <option value="1">Annually</option>
+          <option value="4">Quarterly</option>
+          <option value="12">Monthly</option>
+        </select>
       </label>
     </div>
     <label>ISIN (optional)
@@ -422,6 +453,27 @@
     const pnlOf = (h) =>
       h.cost_price == null ? null : nominalOf(h) * (Number(h.clean_price) - Number(h.cost_price)) / 100;
     const costBasisOf = (h) => nominalOf(h) * Number(h.cost_price) / 100;
+
+    // Coupon income
+    const hasCoupon = (h) => h.coupon_rate != null && Number(h.coupon_rate) > 0;
+    const annualIncomeOf = (h) => hasCoupon(h) ? nominalOf(h) * Number(h.coupon_rate) / 100 : 0;
+    const currentYieldOf = (h) =>
+      hasCoupon(h) && Number(h.clean_price) > 0 ? Number(h.coupon_rate) * 100 / Number(h.clean_price) : null;
+    // Next coupon month, derived from maturity month + frequency (bonds pay on a schedule anchored to maturity).
+    function nextCoupon(h) {
+      if (!hasCoupon(h) || !h.maturity_date) return null;
+      const freq = Number(h.coupon_freq) || 2;
+      const period = 12 / freq;
+      const matIdx = Number(h.maturity_date.slice(0, 4)) * 12 + (Number(h.maturity_date.slice(5, 7)) - 1);
+      const now = new Date();
+      let k = now.getFullYear() * 12 + now.getMonth() + 1; // start next month
+      while (k <= matIdx && (matIdx - k) % period !== 0) k++;
+      if (k > matIdx) return null;
+      const amount = annualIncomeOf(h) / freq;
+      return { idx: k, year: Math.floor(k / 12), month: (k % 12) + 1, amount };
+    }
+    const monthYearLabel = (year, month) =>
+      new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "short", year: "numeric" });
 
     function signedMoney(v, ccy) {
       try {
@@ -586,6 +638,8 @@
 
       if (!holdings.length) {
         totalsEl.innerHTML = "";
+        $("ladder").innerHTML = "";
+        $("coupons").innerHTML = "";
         $("list-label").hidden = true;
         listEl.innerHTML = `<p class="empty">No bonds yet.<br>Tap “+ Add bond” to enter your first holding.</p>`;
         return;
@@ -593,9 +647,10 @@
 
       const byCcy = new Map();
       for (const h of holdings) {
-        const t = byCcy.get(h.currency) || { nominal: 0, market: 0, pnl: 0, basis: 0, hasCost: false };
+        const t = byCcy.get(h.currency) || { nominal: 0, market: 0, pnl: 0, basis: 0, hasCost: false, income: 0 };
         t.nominal += nominalOf(h);
         t.market += marketOf(h);
+        t.income += annualIncomeOf(h);
         const pnl = pnlOf(h);
         if (pnl != null) { t.pnl += pnl; t.basis += costBasisOf(h); t.hasCost = true; }
         byCcy.set(h.currency, t);
@@ -604,18 +659,26 @@
         const pnlLine = t.hasCost
           ? `<div class="sum-pnl num ${t.pnl < 0 ? "pnl-neg" : "pnl-pos"}">${signedMoney(t.pnl, ccy)}${t.basis > 0 ? ` (${signedPct(t.pnl / t.basis)})` : ""} unrealized</div>`
           : "";
+        const incomeLine = t.income > 0
+          ? `<div class="sum-income num">${money0(t.income, ccy)}/yr income · ${money0(t.income / 12, ccy)}/mo · ${(t.income / t.market * 100).toFixed(2)}% yield</div>`
+          : "";
         return `
         <div>
           <div class="sum-label">${esc(ccy)} portfolio</div>
           <div class="sum-value num">${money0(t.market, ccy)}</div>
           <div class="sum-sub num">${money0(t.nominal, ccy)} nominal</div>
           ${pnlLine}
+          ${incomeLine}
         </div>`;
       }).join("");
+
+      renderLadder();
+      renderCoupons();
 
       $("list-label").hidden = false;
       listEl.innerHTML = holdings.map((h) => {
         const bits = [money0(nominalOf(h), h.currency) + " nominal"];
+        if (hasCoupon(h)) bits.push(`${Number(h.coupon_rate)}% coupon`);
         const stale = staleDays(h.priced_at);
         if (stale > 7) bits.push(`${stale}d-old price`);
         const pnl = pnlOf(h);
@@ -665,6 +728,58 @@
         });
       }
     }
+
+    // Maturity ladder — nominal redeeming per year, as bars.
+    function renderLadder() {
+      const el = $("ladder");
+      const dated = holdings.filter((h) => h.maturity_date);
+      if (dated.length < 1) { el.innerHTML = ""; return; }
+      const ccy = dominantCurrency();
+      const byYear = new Map();
+      for (const h of dated) {
+        const y = Number(h.maturity_date.slice(0, 4));
+        byYear.set(y, (byYear.get(y) || 0) + nominalOf(h));
+      }
+      const years = [...byYear.keys()].sort((a, b) => a - b);
+      const max = Math.max(...byYear.values());
+      const rows = years.map((y) => {
+        const v = byYear.get(y);
+        return `
+        <div class="ladder-row">
+          <span class="ladder-year num">${y}</span>
+          <span class="ladder-track"><span class="ladder-fill" style="width:${Math.max(6, v / max * 100)}%"></span></span>
+          <span class="ladder-amt num">${money0(v, ccy)}</span>
+        </div>`;
+      }).join("");
+      el.innerHTML = `<p class="section-label">Maturity ladder · nominal</p><div class="panel">${rows}</div>`;
+    }
+
+    // Upcoming coupons — the next few payments across the book.
+    function renderCoupons() {
+      const el = $("coupons");
+      const upcoming = holdings
+        .map((h) => ({ h, c: nextCoupon(h) }))
+        .filter((x) => x.c)
+        .sort((a, b) => a.c.idx - b.c.idx)
+        .slice(0, 6);
+      if (!upcoming.length) { el.innerHTML = ""; return; }
+      const rows = upcoming.map(({ h, c }) => `
+        <div class="coupon-row">
+          ${avatar(h.name)}
+          <span class="coupon-left">
+            <span class="coupon-name">${esc(h.name)}</span>
+            <span class="coupon-when">${monthYearLabel(c.year, c.month)}</span>
+          </span>
+          <span class="coupon-amt num">${money0(c.amount, h.currency)}</span>
+        </div>`).join("");
+      el.innerHTML = `<p class="section-label">Upcoming coupons</p><div class="panel">${rows}</div>`;
+    }
+
+    const dominantCurrency = () => {
+      const counts = {};
+      for (const h of holdings) counts[h.currency] = (counts[h.currency] || 0) + 1;
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
+    };
 
     // ---- swipe-to-reveal (edit / delete) ----
     const SWIPE_W = 152; // two 76px action buttons
@@ -733,6 +848,8 @@
       $("f-currency").value = h?.currency || "USD";
       $("f-cost").value = h?.cost_price ?? "";
       $("f-price").value = h?.clean_price ?? "";
+      $("f-coupon").value = h?.coupon_rate ?? "";
+      $("f-freq").value = String(h?.coupon_freq ?? 2);
       $("f-isin").value = h?.isin || "";
       lockScroll();
       editor.showModal();
@@ -764,6 +881,8 @@
         quantity: 1,
         cost_price: $("f-cost").value === "" ? null : Number($("f-cost").value),
         clean_price: Number($("f-price").value),
+        coupon_rate: $("f-coupon").value === "" ? null : Number($("f-coupon").value),
+        coupon_freq: Number($("f-freq").value) || 2,
       };
       if (!original || Number(original.clean_price) !== row.clean_price) {
         row.priced_at = new Date().toISOString();
