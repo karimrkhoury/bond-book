@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const items = [];
     const re = /<item>([\s\S]*?)<\/item>/g;
     let m;
-    while ((m = re.exec(xml)) && items.length < 15) {
+    while ((m = re.exec(xml)) && items.length < 60) {
       const blk = m[1];
       const pick = (tag) => {
         const mm = blk.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));

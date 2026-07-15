@@ -86,7 +86,8 @@
     font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; padding: 4px 0;
   }
 
-  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 120px; }
+  main { max-width: 560px; margin: 0 auto; padding: 18px 16px 44px; display: flex; flex-direction: column; gap: 26px; }
+  main > * { margin: 0; }
 
   .card {
     background: var(--surface);
@@ -97,15 +98,15 @@
   }
 
   /* Portfolio summary / hero */
-  #hero { margin: 12px 4px 26px; }
+  #hero { padding: 0 4px; }
   .hero-other { font-size: 14px; color: var(--muted); margin-top: 2px; }
-  .chart { margin-top: 16px; }
+  .chart { margin-top: 20px; }
   .chart svg { display: block; width: 100%; }
   .chart-cap { font-size: 12px; font-weight: 600; margin-top: 5px; }
   .feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 4px 8px; }
   .feed-head .section-label { margin: 0; }
   .view-all { background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 2px 0; }
-  .news-row { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .news-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
   .news-row:last-child { border-bottom: none; }
   .news-row:active { opacity: 0.6; }
   .news-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -121,9 +122,9 @@
   .sum-pnl { font-size: 14px; font-weight: 600; margin-top: 3px; }
   .sum-income { font-size: 14px; color: var(--accent); font-weight: 600; margin-top: 3px; }
 
-  /* Time to maturity + coupons */
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 6px 14px; margin: 0 0 24px; }
-  .mat-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  /* Cards + rows */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .mat-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
   .mat-row:last-child { border-bottom: none; }
   .mat-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
   .mat-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -154,8 +155,8 @@
   .holding {
     position: relative; z-index: 1;
     width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
-    background: var(--bg); border: none;
-    padding: 14px 4px;
+    background: var(--surface); border: none;
+    padding: 14px 16px;
     display: flex; justify-content: space-between; align-items: center; gap: 16px;
     transition: transform .22s cubic-bezier(.2, .8, .2, 1);
     touch-action: pan-y;
@@ -487,6 +488,8 @@
     let snapshots = [];
     let newsCache = null;
     let newsKey = "";
+    let newsShown = 0;
+    let newsObserver = null;
 
     $("auth-email").value = localStorage.getItem("bb.lastEmail") || "";
 
@@ -823,7 +826,8 @@
         .filter((h) => h.maturity_date && maturityProgress(h).yrsLeft <= 2.5)
         .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1))
         .slice(0, 3);
-      if (!soon.length) { el.innerHTML = ""; return; }
+      if (!soon.length) { el.innerHTML = ""; el.hidden = true; return; }
+      el.hidden = false;
       const rows = soon.map((h) => {
         const p = maturityProgress(h);
         const timeLabel = p.yrsLeft <= 0 ? "matured"
@@ -910,7 +914,7 @@
       const sorted = byValueDesc();
       const link = sorted.length > 3
         ? `<button class="view-all" id="holdings-viewall" type="button">View all ${sorted.length}</button>` : "";
-      el.innerHTML = `<div class="feed-head"><p class="section-label">Holdings</p>${link}</div><div id="list">${holdingRowsHTML(sorted.slice(0, 3))}</div>`;
+      el.innerHTML = `<div class="feed-head"><p class="section-label">Holdings</p>${link}</div><div class="panel">${holdingRowsHTML(sorted.slice(0, 3))}</div>`;
       const va = $("holdings-viewall");
       if (va) va.addEventListener("click", gotoHoldings);
       wireHoldingRows(el);
@@ -919,7 +923,7 @@
     // Dedicated page: every holding, sorted by market value.
     function renderHoldingsFull() {
       const el = $("holdings-full");
-      el.innerHTML = `<div id="list">${holdingRowsHTML(byValueDesc())}</div>`;
+      el.innerHTML = `<div class="panel">${holdingRowsHTML(byValueDesc())}</div>`;
       wireHoldingRows(el);
     }
 
@@ -971,8 +975,27 @@
       const va = $("news-viewall");
       if (va) va.addEventListener("click", gotoNews);
     }
+    // Dedicated news page: infinite scroll through the full pool in batches.
     function renderNewsFull() {
-      $("news-full").innerHTML = `<div class="panel">${newsRowsHTML(newsCache || [])}</div>`;
+      const el = $("news-full");
+      newsShown = 0;
+      if (newsObserver) { newsObserver.disconnect(); newsObserver = null; }
+      el.innerHTML = `<div class="panel" id="news-full-list"></div><div id="news-sentinel"></div>`;
+      appendMoreNews();
+      newsObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) appendMoreNews();
+      }, { rootMargin: "400px" });
+      newsObserver.observe($("news-sentinel"));
+    }
+    function appendMoreNews() {
+      const all = newsCache || [];
+      if (newsShown >= all.length) {
+        if (newsObserver) { newsObserver.disconnect(); newsObserver = null; }
+        return;
+      }
+      const next = all.slice(newsShown, newsShown + 15);
+      $("news-full-list").insertAdjacentHTML("beforeend", newsRowsHTML(next));
+      newsShown += next.length;
     }
     function relTime(pub) {
       const t = new Date(pub).getTime();
