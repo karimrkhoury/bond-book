@@ -1,0 +1,75 @@
+<!-- @dsCard group="Components" name="Income & maturity" subtitle="Income summary line, maturity-ladder bars, upcoming coupons" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bond Book — Income & maturity</title>
+<style>
+  :root { --bg:#F6F8F7; --surface:#FFFFFF; --ink:#182B27; --muted:#5F7470; --line:#E3E9E7; --chip:#EAF1EF;
+          --accent:#0E7566; --gain:#1A7F37;
+          --shadow:0 1px 2px rgba(24,43,39,.06), 0 4px 16px rgba(24,43,39,.05); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0F1514; --surface:#1A2321; --ink:#E9F0EE; --muted:#96A8A3; --line:#2A3634; --chip:#233029;
+            --accent:#43C9B0; --gain:#4ADE80;
+            --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3); } }
+  body { margin:0; padding:20px; background:var(--bg); color:var(--ink);
+         font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  .num { font-variant-numeric: tabular-nums; }
+  .wrap { max-width:400px; }
+  .section-label { font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 4px 8px; }
+  .sum-value { font-size:34px; font-weight:700; letter-spacing:-0.02em; }
+  .sum-sub { font-size:14px; color:var(--muted); margin-top:5px; }
+  .sum-income { font-size:14px; color:var(--accent); font-weight:600; margin-top:3px; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:6px 14px; margin:0 0 24px; }
+  .ladder-row { display:flex; align-items:center; gap:12px; padding:7px 0; }
+  .ladder-year { width:42px; flex-shrink:0; font-size:13px; font-weight:600; color:var(--muted); }
+  .ladder-track { flex:1; height:20px; background:var(--chip); border-radius:6px; overflow:hidden; }
+  .ladder-fill { display:block; height:100%; background:var(--accent); border-radius:6px; }
+  .ladder-amt { flex-shrink:0; font-size:13px; font-weight:600; text-align:right; }
+  .coupon-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .coupon-row:last-child { border-bottom:none; }
+  .h-avatar { flex-shrink:0; width:32px; height:32px; border-radius:50%; overflow:hidden; }
+  .h-avatar img { width:100%; height:100%; }
+  .coupon-left { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .coupon-name { font-weight:600; }
+  .coupon-when { font-size:13px; color:var(--muted); }
+  .coupon-amt { flex-shrink:0; font-weight:600; color:var(--accent); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="section-label">USD portfolio</div>
+    <div class="sum-value num">$1,588,200</div>
+    <div class="sum-sub num">$1,550,000 nominal</div>
+    <div class="sum-income num">$93,188/yr income · $7,766/mo · 5.87% yield</div>
+
+    <p class="section-label" style="margin-top:24px">Maturity ladder · nominal</p>
+    <div class="panel">
+      <div class="ladder-row"><span class="ladder-year num">2029</span><span class="ladder-track"><span class="ladder-fill" style="width:40%"></span></span><span class="ladder-amt num">$200,000</span></div>
+      <div class="ladder-row"><span class="ladder-year num">2032</span><span class="ladder-track"><span class="ladder-fill" style="width:60%"></span></span><span class="ladder-amt num">$300,000</span></div>
+      <div class="ladder-row"><span class="ladder-year num">2047</span><span class="ladder-track"><span class="ladder-fill" style="width:100%"></span></span><span class="ladder-amt num">$500,000</span></div>
+      <div class="ladder-row"><span class="ladder-year num">2050</span><span class="ladder-track"><span class="ladder-fill" style="width:50%"></span></span><span class="ladder-amt num">$250,000</span></div>
+    </div>
+
+    <p class="section-label">Upcoming coupons</p>
+    <div class="panel">
+      <div class="coupon-row">
+        <span class="h-avatar"><img src="https://hatscripts.github.io/circle-flags/flags/om.svg" alt=""></span>
+        <span class="coupon-left"><span class="coupon-name">Oman</span><span class="coupon-when">Aug 2026</span></span>
+        <span class="coupon-amt num">$16,250</span>
+      </div>
+      <div class="coupon-row">
+        <span class="h-avatar"><img src="https://hatscripts.github.io/circle-flags/flags/tr.svg" alt=""></span>
+        <span class="coupon-left"><span class="coupon-name">Turkey</span><span class="coupon-when">Sep 2026</span></span>
+        <span class="coupon-amt num">$7,875</span>
+      </div>
+      <div class="coupon-row">
+        <span class="h-avatar"><img src="https://hatscripts.github.io/circle-flags/flags/eg.svg" alt=""></span>
+        <span class="coupon-left"><span class="coupon-name">Egypt</span><span class="coupon-when">Nov 2026</span></span>
+        <span class="coupon-amt num">$11,250</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
