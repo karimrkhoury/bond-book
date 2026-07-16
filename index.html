@@ -838,11 +838,11 @@
         </div>`;
     }
 
-    // Maturing soon: bonds maturing within 2.5 years, up to 3. Hidden if none.
+    // Maturing soon: bonds maturing within 1 year, up to 3. Hidden if none.
     function renderMaturing() {
       const el = $("maturing");
       const soon = holdings
-        .filter((h) => h.maturity_date && maturityProgress(h).yrsLeft <= 2.5)
+        .filter((h) => h.maturity_date && maturityProgress(h).yrsLeft <= 1)
         .sort((a, b) => (a.maturity_date < b.maturity_date ? -1 : 1))
         .slice(0, 3);
       if (!soon.length) { el.innerHTML = ""; el.hidden = true; return; }
