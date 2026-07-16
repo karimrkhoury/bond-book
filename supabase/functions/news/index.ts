@@ -53,6 +53,11 @@ Deno.serve(async (req) => {
       if (source && title.endsWith(" - " + source)) title = title.slice(0, -(source.length + 3)).trim();
       if (title && link && !SPORTS.test(title)) items.push({ title, link, pubDate, source, domain });
     }
+    // Newest first (Google returns relevance order); undated items last.
+    items.sort((a, b) => {
+      const ta = new Date(a.pubDate).getTime(), tb = new Date(b.pubDate).getTime();
+      return (isNaN(tb) ? -Infinity : tb) - (isNaN(ta) ? -Infinity : ta);
+    });
     return json({ items });
   } catch (e) {
     return json({ items: [], error: String(e) });

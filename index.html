@@ -959,7 +959,13 @@
         const r = await fetch(`${cfg.supabaseUrl}/functions/v1/news?q=${encodeURIComponent(key)}`,
           { headers: { apikey: cfg.supabaseAnonKey } });
         const d = await r.json();
-        newsCache = Array.isArray(d.items) ? d.items : [];
+        const items = Array.isArray(d.items) ? d.items : [];
+        // Google returns relevance order; show newest first, undated last.
+        items.sort((a, b) => {
+          const ta = new Date(a.pubDate).getTime(), tb = new Date(b.pubDate).getTime();
+          return (isNaN(tb) ? -Infinity : tb) - (isNaN(ta) ? -Infinity : ta);
+        });
+        newsCache = items;
       } catch { newsCache = []; }
       renderNews();
     }
